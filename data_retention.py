@@ -1,9 +1,27 @@
+import argparse
+import json
+import os
+
 from tqdm import tqdm
 import collections
 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+
+from src.plotting import plot_rouge_retention, plot_increase, plot_bleuvar_retention
+
+
+def read_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data", nargs='+', help="")
+    parser.add_argument("--root_path", type=str, help="")
+    parser.add_argument("--models", nargs='+', help="")
+    parser.add_argument("--n_list", nargs='+', type=int, help="")
+    parser.add_argument("--bases", nargs='+', help="")
+
+    args, unknown = parser.parse_known_args()
+
+    return args, unknown
 
 
 def metrics_change(df):
@@ -86,103 +104,40 @@ def aggregate_runs(dfs):
 
     return agg_dfs
 
-def plot_rouge_retention(data, metrics, runs, run_models, n_list, base_runs, base_models, save_path):
+
+def increase_metrics(runs, run_models, n_list, fractions, metrics):
     """"""
-    plt.rcParams['figure.figsize'] = [18, 6]
-    fig, axs = plt.subplots(1, 3)
+    all_metrics = {}
+    for run_df, model, n in zip(runs, run_models, n_list):
+        model_metrics = {}
+        for i, frac in enumerate(fractions):
+            discr_df = run_df.describe()
+            frac_metrics_df = run_df[run_df["bleuvar"] < discr_df["bleuvar"][frac]][
+                ["rouge1_var", "rouge2_var", "rougeL_var"]] \
+                .agg(['mean', 'std'])
+            frac_metrics = {}
+            for metric in metrics:
+                frac_increase = (
+                    (frac_metrics_df[f"{metric}_var"]["mean"] - discr_df[f"{metric}_var"]["mean"])
+                    / discr_df[f"{metric}_var"]["mean"]
+                ) * 100
+                frac_metrics[metric] = frac_increase
+            model_metrics[frac] = frac_metrics
+        all_metrics[f"Var{model}-{n}"] = model_metrics
 
-    # plot metrics
-    for metrics_change_df, model, n in zip(runs, run_models, n_list):
-        for j, metric in enumerate(metrics):
-            metrics_change_df[f"{metric}_var"].plot(label=f"Var{model}-{n}", ax=axs[j])
-
-    num_steps = len(runs[0])
-
-    # plot baselines
-    color_map = {0: 'r', 1: 'b'}
-    for i, (metrics_base, base_model) in enumerate(zip(base_runs, base_models)):
-        for j, metric in enumerate(metrics):
-            base_r = axs[j].axhline(y=metrics_base[metric]["mean"], color=color_map[i], linestyle='--')
-            base_r.set_label(f"{base_model}")
-
-    for j, metric in enumerate(metrics):
-        axs[j].set_xticks(range(0, num_steps + 100, int(num_steps / 10)))
-        locator_len = len(axs[j].xaxis.get_major_locator().locs)
-        axs[j].set_xticklabels([x / 10 for x in range(0, locator_len)])
-        axs[j].set_xlabel('Fraction of data retained')
-        axs[j].set_ylabel(f"{metric}")
-
-        axs[j].legend(loc='best')
-
-    fig.text(0.5, 0.92, f'{data} dataset', ha='center', va='center', fontsize=15)
-
-    fig.savefig(f'{save_path}/{data}_new_data.eps', format='eps')
-    print(f"Exported {save_path}/{data}_new_data.eps")
-
-
-def plot_bleuvar_retention(dataset_runs, run_models, n_list, save_path):
-    """"""
-    plt.rcParams['figure.figsize'] = [18, 6]
-
-    fig, axs = plt.subplots(1, len(dataset_runs.keys()))
-    for j, dataset in enumerate(dataset_runs.keys()):
-        norm_run_dfs = dataset_runs[dataset]
-
-        num_steps = len(norm_run_dfs[0])
-        for norm_df, model, n in zip(norm_run_dfs, run_models, n_list):
-            norm_df["bleuvar_scaled"].plot(label=f"Var{model}-{n}", ax=axs[j])
-
-        axs[j].set_xticks(range(0, num_steps + 100, int(num_steps / 10)))
-        locator_len = len(axs[j].xaxis.get_major_locator().locs)
-        axs[j].set_xticklabels([x / 10 for x in range(0, locator_len)])
-        axs[j].set_xlabel('Fraction of data retained')
-        axs[j].set_ylabel(f"{dataset}")
-        axs[j].legend(loc='best')
-
-    fig.text(0.5, 0.92, 'BLEUVAR', ha='center', va='center', fontsize=15)
-    fig.savefig(f'{save_path}/bleuvars_new.eps', format='eps')
-    print(f"Exported {save_path}/bleuvars_new.eps")
-
-
-def plot_increase(data, diff_runs, run_models, metrics, n_list, save_path):
-    """"""
-    plt.rcParams['figure.figsize'] = [18, 6]
-    fig, axs = plt.subplots(1, 3)
-
-    num_steps = len(diff_runs[0])
-    for diff_df, model, n in zip(diff_runs, run_models, n_list):
-        for j, metric in enumerate(metrics):
-            diff_df[f"{metric}_diff"].plot(label=f"Var{model}-{n}", ax=axs[j])
-
-    for j, metric in enumerate(metrics):
-        axs[j].set_xticks(range(0, num_steps + 100, int(num_steps / 10)))
-        locator_len = len(axs[j].xaxis.get_major_locator().locs)
-        axs[j].set_xticklabels([x / 10 for x in range(0, locator_len)])
-        axs[j].set_xlabel('Fraction of data retained')
-        axs[j].set_ylabel(f"{metric} difference")
-
-        axs[j].legend(loc='best')
-
-    fig.text(0.5, 0.92, f'{data} dataset', ha='center', va='center', fontsize=15)
-    fig.savefig(f'{save_path}/{data}_diff_new.eps', format='eps')
-    print(f"Exported {save_path}/{data}_diff_new.eps")
+    return all_metrics
 
 
 if __name__ == "__main__":
-    data_list = ["xsum", "cnn_dailymail"]
-    root_data_path = "exp_runs"
-    model_list = [
-        "PEGASUS",
-        "PEGASUS",
-        "BART",
-        "BART",
-    ]
-    base_model_list = [
-        "PEGASUS",
-        "BART",
-    ]
+    args, unknown = read_args()
+
+    data_list = args.data
+    root_data_path = args.root_path
+    model_list = args.models
+    base_model_list = args.bases
     metrics_list = ["rouge1", "rouge2", "rougeL"]
-    n_list = [10, 20, 10, 20]
+    n_list = args.n_list
+    fraction_list = ["75%", "50%", "25%"]
 
     data_runs = {}
     for data in data_list:
@@ -198,6 +153,18 @@ if __name__ == "__main__":
         run_dfs = load_runs(run_list, n_list)
         base_dfs, agg_base_dfs = load_bases(base_list)
         join_dfs = join_runs(runs=run_dfs, run_models=model_list, base_runs=base_dfs, base_models=base_model_list)
+
+        incr_metrics = increase_metrics(
+            runs=join_dfs,
+            run_models=model_list,
+            n_list=n_list,
+            fractions=fraction_list,
+            metrics=metrics_list)
+
+        with open(os.path.join(root_data_path, f"{data}_increase_metrics.json"), "w") as mf:
+            json.dump(incr_metrics, mf)
+            print(f"Exported {data}_increase_metrics.json")
+
         agg_run_dfs = aggregate_runs(join_dfs)
 
         norm_run_dfs = norm_bleuvar(runs=agg_run_dfs, n_list=n_list)
