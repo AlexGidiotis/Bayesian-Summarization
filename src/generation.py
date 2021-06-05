@@ -6,8 +6,6 @@ def generate_summaries(test_loader, model, tokenizer, device, args):
     gen_sums = []
     target_sums = []
     article_ids = []
-    section_ids = []
-    abstracts = []
     num_articles = 0
     for i, batch in enumerate(tqdm(test_loader)):
         model_inputs = tokenizer(

@@ -2,11 +2,7 @@ import argparse
 import json
 import os
 
-from tqdm import tqdm
-import collections
-
 import pandas as pd
-import numpy as np
 
 from src.plotting import plot_rouge_retention, plot_increase, plot_bleuvar_retention
 

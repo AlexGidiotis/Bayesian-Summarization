@@ -41,7 +41,7 @@ def process_write(text):
 
 def write_gen(df, out_path):
     """NOT FINISHED"""
-    pass
+    raise NotImplementedError("Writing summaries for the original ROUGE scoring is no supported")
     # out_path = os.path.join(out_path, "generations")
     # hyp_path = os.path.join(out_path, "hyp")
     # ref_path = os.path.join(out_path, "ref")

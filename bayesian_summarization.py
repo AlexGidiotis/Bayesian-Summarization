@@ -4,7 +4,7 @@ import random
 
 import torch
 
-from src.bayesian import bayesian_conversion, bayesian_generate_summaries
+from src.bayesian import BayesianSummarizer
 from src.loaders import init_loader, load_model
 from src.scoring import score_standard
 
@@ -49,10 +49,10 @@ def main():
 
     test_loader = init_loader(args)
     model, tokenizer = load_model(args, device=device)
-    model = bayesian_conversion(model, True)
+    bayesian_summarizer = BayesianSummarizer(model=model, tokenizer=tokenizer)
 
-    generated_sums, target_sums, article_ids, bleuvars = bayesian_generate_summaries(
-        test_loader, model, tokenizer, device=device, args=args)
+    generated_sums, target_sums, article_ids, bleuvars = bayesian_summarizer.generate_bayesian_summaries(
+        test_loader, device=device, args=args)
 
     metrics, mdf = score_standard(
         gen_sums=generated_sums,
