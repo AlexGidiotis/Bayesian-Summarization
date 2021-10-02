@@ -46,8 +46,8 @@ def main():
     if not os.path.exists(args.output_path):
         os.mkdir(args.output_path)
 
-    test_loader = init_loader(args)
-    model, tokenizer = load_model(args, device=device)
+    test_loader = init_loader(test_batch_size=args.test_batch_size, data_path=args.data_path, dataset_name=args.dataset_name, dataset_config_name=args.dataset_config_name, max_test_samples=args.max_test_samples)
+    model, tokenizer = load_model(model_path=args.model_path, tokenizer_name=args.tokenizer_name, device=device)
     
     model.eval()
     generated_sums, target_sums, article_ids = generate_summaries(

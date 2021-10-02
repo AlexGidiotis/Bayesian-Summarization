@@ -28,12 +28,12 @@ def generate_summaries(test_loader, model, tokenizer, device, args):
 
         gen_sums += gen_sum
         target_sums += batch[args.summary_column]
-        
+
         try:
             article_ids += batch["article_id"]
         except KeyError:
-            article_ids += range(num_articles, num_articles+len(input_ids))
-            
+            article_ids += range(num_articles, num_articles + len(input_ids))
+
         num_articles += len(input_ids)
 
     return gen_sums, target_sums, article_ids

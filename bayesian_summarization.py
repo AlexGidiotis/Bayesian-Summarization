@@ -47,12 +47,19 @@ def main():
     if not os.path.exists(args.output_path):
         os.mkdir(args.output_path)
 
-    test_loader = init_loader(args)
-    model, tokenizer = load_model(args, device=device)
+    test_loader = init_loader(test_batch_size=args.test_batch_size, data_path=args.data_path, dataset_name=args.dataset_name, dataset_config_name=args.dataset_config_name, max_test_samples=args.max_test_samples)
+    model, tokenizer = load_model(model_path=args.model_path, tokenizer_name=args.tokenizer_name, device=device)
     bayesian_summarizer = BayesianSummarizer(model=model, tokenizer=tokenizer)
 
     generated_sums, target_sums, article_ids, bleuvars = bayesian_summarizer.generate_bayesian_summaries(
-        test_loader, device=device, args=args)
+        dataloader=test_loader,
+        device=device,
+        text_column=args.text_column,
+        summary_column=args.summary_column,
+        max_source_length=args.max_source_length,
+        num_beams=args.num_beams,
+        n=args.mc_samples,
+        return_unc=True)
 
     metrics, mdf = score_standard(
         gen_sums=generated_sums,

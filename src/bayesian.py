@@ -8,12 +8,28 @@ from src.bleu import analyze_generation_bleuvar
 
 class BayesianSummarizer:
     """
-    Bayesian Summarizer class
+    Bayesian summarizer class
 
     Converts a given summarization model to a variational model
     by turning dropout "on" during inference.
     The model can then be used to sample summaries with MC Dropout
     and compute model uncertainty.
+
+    NOTE: The summarization model must be one of (BART and PEGASUS)
+
+    Example:
+    ```
+    model, tokenizer = load_model(...)
+    bayesian_summarizer = BayesianSummarizer(model=model, tokenizer=tokenizer)
+
+    generated_sums = bayesian_summarizer.generate_summaries(
+        dataloader,
+        device='gpu',
+        text_column='document',
+        max_source_length=128,
+        num_beams=3,
+        n=10)
+    ```
     """
     def __init__(self, model, tokenizer):
         self.model = model
@@ -31,7 +47,16 @@ class BayesianSummarizer:
         else:
             self.model.eval()
 
-    def generate_bayesian_summaries(self, test_loader, device, args):
+    def generate_bayesian_summaries(
+            self,
+            dataloader,
+            device,
+            text_column,
+            summary_column=None,
+            max_source_length=128,
+            num_beams=3,
+            n=10,
+            return_unc=True):
         """
         Run bayesian summary generation given a DataLoader and a Bayesian model.
         During generation, we run generation N times (with MC dropout) in order
@@ -44,20 +69,20 @@ class BayesianSummarizer:
         article_ids = []
         bleuvars = []
         num_articles = 0
-        for i, batch in enumerate(tqdm(test_loader)):
+        for i, batch in enumerate(tqdm(dataloader)):
             model_inputs = self.tokenizer(
-                batch[args.text_column],
-                max_length=args.max_source_length,
+                batch[text_column],
+                max_length=max_source_length,
                 truncation=True,
                 padding=True,
                 return_tensors='pt')
 
             input_ids = model_inputs['input_ids'].to(device)
             generations = []
-            for i_s in range(args.mc_samples):
+            for i_s in range(n):
                 sent_outputs = self.model.generate(
                     input_ids,
-                    num_beams=args.num_beams,
+                    num_beams=num_beams,
                     early_stopping=True,
                     return_dict_in_generate=True,
                     output_scores=True)  # only one beam should be equivalent to greedy,
@@ -68,7 +93,10 @@ class BayesianSummarizer:
 
                 generations.append(gen_sum)
 
-            target_sums += batch[args.summary_column]
+            target_sums = None
+            if summary_column is not None:
+                target_sums += batch[summary_column]
+
             try:
                 article_ids += batch["article_id"]
             except KeyError:
@@ -77,10 +105,13 @@ class BayesianSummarizer:
             num_articles += len(input_ids)
             generations_r = [list(x) for x in zip(*generations)]
 
-            for gen_list in generations_r:
-                bleuvar, min_bleuvar, min_gen_idx, min_gen = analyze_generation_bleuvar(gen_list)
-                generated_sums.append(min_gen)
-                bleuvars.append(bleuvar)
+            if return_unc:
+                for gen_list in generations_r:
+                    bleuvar, min_bleuvar, min_gen_idx, min_gen = analyze_generation_bleuvar(gen_list, n=n)
+                    generated_sums.append(min_gen)
+                    bleuvars.append(bleuvar)
+            else:
+                generated_sums += generations_r
 
         return generated_sums, target_sums, article_ids, bleuvars
 

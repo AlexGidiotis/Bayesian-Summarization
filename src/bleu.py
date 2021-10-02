@@ -27,14 +27,13 @@ def pair_bleu(text1, text2):
     return score
 
 
-def analyze_generation_bleuvar(gen_list):
+def analyze_generation_bleuvar(gen_list, n=10):
     """
     Given a list of generated texts, computes the pairwise BLEUvar
     between all text pairs. In addition, also finds the generation
     that has the smallest avg. BLEUvar score (most similar)
     with all other generations.
     """
-    n = len(gen_list)
     bleu_scores = np.zeros((n, n), dtype=float)
     bleu_var = 0.
     min_gen_idx = None
@@ -55,37 +54,6 @@ def analyze_generation_bleuvar(gen_list):
             min_bleuvar = mu_bleuvar
             min_gen_idx = j
 
-    return bleu_var, min_bleuvar, min_gen_idx, gen_list[min_gen_idx]
-
-
-def _analyze_generation_bleuvar(gen_list):
-    """
-    Given a list of generated texts, computes the pairwise BLEUvar
-    between all text pairs. In addition, also finds the generation
-    that has the smallest avg. BLEUvar score (most similar)
-    with all other generations.
-    """
-    n = len(gen_list)
-    bleu_scores = np.zeros((n, n), dtype=float)
-    bleu_var = 0.
-    min_gen_idx = None
-    min_bleuvar = float('inf')
-    for j, dec_j in enumerate(gen_list):
-        gen_bleuvar = 0.
-        for k in range(j + 1, n):
-            dec_k = gen_list[k]
-            jk_bleu = pair_bleu(dec_j, dec_k)
-            kj_bleu = pair_bleu(dec_k, dec_j)
-
-            gen_bleuvar += (1 - jk_bleu) ** 2
-            gen_bleuvar += (1 - kj_bleu) ** 2
-            bleu_scores[j, k] = 1 - jk_bleu
-            bleu_scores[k, j] = 1 - kj_bleu
-
-        mu_bleuvar = gen_bleuvar
-        bleu_var += gen_bleuvar
-        if mu_bleuvar < min_bleuvar:
-            min_bleuvar = mu_bleuvar
-            min_gen_idx = j
+    bleu_var /= n * (n - 1)
 
     return bleu_var, min_bleuvar, min_gen_idx, gen_list[min_gen_idx]
