@@ -23,7 +23,7 @@ def write_metrics(out_path, metrics, filename):
         hist.write("\n")
 
 
-class ActiveSumm:
+class ActiveSum:
     """
     Base class for active summarization training.
     Implements the basic training step and can be extended
@@ -189,7 +189,7 @@ class ActiveSumm:
         print(f"{len(selected_idxs)} have been removed from the pool")
 
 
-class BayesianActiveSumm(ActiveSumm):
+class BAS(ActiveSum):
     """
     Bayesian active summarization module.
 
@@ -202,7 +202,7 @@ class BayesianActiveSumm(ActiveSumm):
 
     Example:
     ```
-    active_learner = BayesianActiveSumm(
+    active_learner = BAS(
         train_sampler,
         device='gpu',
         doc_col='document',
@@ -238,7 +238,7 @@ class BayesianActiveSumm(ActiveSumm):
     ```
     """
     def __init__(self, data_sampler, device, **kwargs):
-        super(BayesianActiveSumm, self).__init__(data_sampler, device, **kwargs)
+        super(BAS, self).__init__(data_sampler, device, **kwargs)
 
     def learn(self, steps, model_path, labeled_path, k, s, n, eval_path, epochs):
         """Learning strategy for Bayesian summarization"""
@@ -317,7 +317,7 @@ class BayesianActiveSumm(ActiveSumm):
         print(f"Finished learning step {step}: {ei_time - si_time} sec.")
 
 
-class RandomActiveSumm(ActiveSumm):
+class RandomActiveSum(ActiveSum):
     """
     Random active summarization module.
 
@@ -328,7 +328,7 @@ class RandomActiveSumm(ActiveSumm):
 
     Example:
     ```
-    active_learner = RandomActiveSumm(
+    active_learner = RandomActiveSum(
         train_sampler,
         device='gpu',
         doc_col='document',
@@ -364,7 +364,7 @@ class RandomActiveSumm(ActiveSumm):
     ```
     """
     def __init__(self, data_sampler, device, **kwargs):
-        super(RandomActiveSumm, self).__init__(data_sampler, device, **kwargs)
+        super(RandomActiveSum, self).__init__(data_sampler, device, **kwargs)
 
     def learn(self, steps, model_path, labeled_path, k, s, eval_path, epochs):
         """Learning strategy"""
