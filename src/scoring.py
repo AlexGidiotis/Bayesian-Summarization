@@ -23,6 +23,7 @@ def score_standard(
         target_sums,
         article_ids):
     """Score standard summaries"""
+    assert len(gen_sums) == len(target_sums) == len(article_ids), f"Input dims must be the equal but got {len(gen_sums)}, {len(target_sums)}, {len(article_ids)}"
     df = pd.DataFrame(
         list(zip(article_ids, target_sums, gen_sums)),
         columns=["article_id", "target_sum", "gen_sum"])

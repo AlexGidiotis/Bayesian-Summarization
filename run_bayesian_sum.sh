@@ -1,6 +1,6 @@
 python -u bayesian_summarization.py \
     --model_path google/pegasus-xsum --dataset_name xsum \
-    --output_path varpegasus10_new_xsum \
+    --output_path varpegasus10_test \
     --text_column document \
     --summary_column summary \
     --max_source_length 256 \

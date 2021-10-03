@@ -257,7 +257,7 @@ class BAS(ActiveSum):
         model, tokenizer = load_model(tokenizer_name=self.init_model, model_path=model_path, device=self.device)
         bayesian_summarizer = BayesianSummarizer(model=model, tokenizer=tokenizer)
 
-        generated_sums = bayesian_summarizer.generate_summaries(
+        generated_sums = bayesian_summarizer.generate_mc_summaries(
             dataloader,
             device=self.device,
             text_column=self.doc_col,

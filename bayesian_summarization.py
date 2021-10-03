@@ -58,14 +58,13 @@ def main():
         summary_column=args.summary_column,
         max_source_length=args.max_source_length,
         num_beams=args.num_beams,
-        n=args.mc_samples,
-        return_unc=True)
-
+        n=args.mc_samples)
+    
     metrics, mdf = score_standard(
         gen_sums=generated_sums,
         target_sums=target_sums,
         article_ids=article_ids)
-
+    
     mdf["bleuvar"] = bleuvars
     print(mdf)
     print(metrics)
