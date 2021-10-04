@@ -4,16 +4,16 @@ import torch
 from datasets import load_dataset
 
 
-def init_loader(test_batch_size, data_path=None, dataset_name=None, dataset_config_name=None, max_test_samples=None):
+def init_loader(test_batch_size, split, data_path=None, dataset_name=None, dataset_config_name=None, max_test_samples=None):
     """Initialize test DataLoader"""
     if dataset_name is not None:
         datasets = load_dataset(dataset_name, dataset_config_name)
     else:
-        data_files = {"test": data_path}
+        data_files = {split: data_path}
         extension = data_path.split(".")[-1]
         datasets = load_dataset(extension, data_files=data_files)
 
-    test_dataset = datasets["test"]
+    test_dataset = datasets[split]
     if max_test_samples is not None:
         test_dataset = test_dataset.select(range(max_test_samples))
     
@@ -39,13 +39,13 @@ def load_model(device, model_path, tokenizer_name=None):
     return model, tokenizer
 
 
-def init_dataset(args, split="train"):
+def init_dataset(data_path=None, dataset_name=None, dataset_config_name=None, split="train"):
     """Initialize test Dataset"""
-    if args.dataset_name is not None:
-        datasets = load_dataset(args.dataset_name, args.dataset_config_name)
+    if dataset_name is not None:
+        datasets = load_dataset(dataset_name, dataset_config_name)
     else:
-        data_files = {split: args.data_path}
-        extension = args.data_path.split(".")[-1]
+        data_files = {split: data_path}
+        extension = data_path.split(".")[-1]
         datasets = load_dataset(extension, data_files=data_files)
 
     dataset = datasets[split]
@@ -53,12 +53,11 @@ def init_dataset(args, split="train"):
     return dataset
 
 
-def create_loader(data_sampler, batch_size, sample):
+def create_loader(dataset, batch_size, sample):
     """Takes a torch Dataset and a list of indexes and creates a DataLoader of it.
 
     The DataLoader will only use the subset of articles specified in sample list of indexes.
     """
-    dataset = data_sampler.dataset
     params = {
         'batch_size': batch_size,
         'shuffle': False,

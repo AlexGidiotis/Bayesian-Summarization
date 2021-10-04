@@ -252,7 +252,7 @@ class BAS(ActiveSum):
         For each input we run N stochastic forward passes with dropout enabled in order to get
         n different summaries.
         """
-        dataloader = create_loader(self.data_sampler, batch_size=self.batch_size, sample=sample_idxs)
+        dataloader = create_loader(self.data_sampler.dataset, batch_size=self.batch_size, sample=sample_idxs)
 
         model, tokenizer = load_model(tokenizer_name=self.init_model, model_path=model_path, device=self.device)
         bayesian_summarizer = BayesianSummarizer(model=model, tokenizer=tokenizer)

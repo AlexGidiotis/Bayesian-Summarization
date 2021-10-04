@@ -79,7 +79,7 @@ def main():
 
     train_model = os.path.join(args.output_path, "models")
 
-    train_dataset = init_dataset(args, split="train")
+    train_dataset = init_dataset(data_path=args.data_path, dataset_name=args.dataset_name, dataset_config_name=args.dataset_config_name, split="train")
     train_sampler = active_sum.DataSampler(train_dataset, split="train")
 
     print(f"{args.acquisition} L: {args.L} K: {args.K} S: {args.S} steps: {args.steps}")
