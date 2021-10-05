@@ -55,5 +55,9 @@ def analyze_generation_bleuvar(gen_list, n=10):
             min_gen_idx = j
 
     bleu_var /= n * (n - 1)
+    try:
+        min_gen = gen_list[min_gen_idx]
+    except TypeError:
+        min_gen = ""
 
-    return bleu_var, min_bleuvar, min_gen_idx, gen_list[min_gen_idx]
+    return bleu_var, min_bleuvar, min_gen_idx, min_gen
