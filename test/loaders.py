@@ -17,12 +17,6 @@ def write_test_json(datafile, n):
 
 
 class TestDataLoader(unittest.TestCase):
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
-
     def test_init_loader(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             datafile = os.path.join(tmp_dir, "test.json")

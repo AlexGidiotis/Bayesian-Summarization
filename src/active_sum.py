@@ -310,7 +310,12 @@ class BAS(ActiveSum):
         selected_idxs = [sample_idxs[i] for i in selected_samples]
 
         self.data_sampler.remove_samples(selected_idxs)
-        self.write_samples(sample.select(selected_samples), selected_samples, selected_idxs, labeled_path, scores=unc_scores)
+        self.write_samples(
+            sample.select(selected_samples),
+            selected_samples,
+            selected_idxs,
+            labeled_path,
+            scores=unc_scores)
 
         self.train_step(labeled_path, model_path, eval_path, epochs)
         ei_time = time.time()
