@@ -3,3 +3,5 @@ transformers==4.3.3
 nltk==3.5
 rouge-score==0.0.4
 sentencepiece==0.1.95
+pytest==6.2.5
+pytest-cov==3.0.0
