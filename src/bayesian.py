@@ -42,21 +42,9 @@ class BayesianSummarizer:
     ```
     """
     def __init__(self, model, tokenizer):
-        self.model = model
+        self.model = convert_bayesian_model(model, bayesian=True)
         self.tokenizer = tokenizer
-        self.convert_bayesian_model(bayesian=True)
 
-    def convert_bayesian_model(self, bayesian=True):
-        """
-        Convert the given Pegasus model to either a Bayesian
-        or deterministic model.
-        """
-        if bayesian:
-            self.model.eval()
-            self.model.apply(apply_dropout)
-        else:
-            self.model.eval()
-    
     def run_mc_dropout(
             self,
             batch,
@@ -183,6 +171,19 @@ class BayesianSummarizer:
             generated_sums += generations_r
 
         return generated_sums
+
+
+def convert_bayesian_model(model, bayesian=True):
+    """
+    Convert the given Pegasus model to either a Bayesian
+    or deterministic model.
+    """
+    if bayesian:
+        model.eval()
+        model.apply(apply_dropout)
+    else:
+        model.eval()
+    return model
 
 
 def apply_dropout(m):

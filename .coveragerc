@@ -1,5 +1,6 @@
 [report]
 show_missing=True
+fail_under=80
 sort=Cover
 skip_covered=False
 include=src/*
