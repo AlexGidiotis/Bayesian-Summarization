@@ -1,14 +1,12 @@
-import os
 import tempfile
 import unittest
 import mock
 
 from transformers import AutoTokenizer, PegasusForConditionalGeneration, PegasusConfig
 
-from src.loaders import init_loader
-from test.test_loaders import write_test_json, create_test_loader
-from test.testing_common_utils import ids_tensor, floats_tensor, values_tensor
-from src.bayesian import BayesianSummarizer
+from test.test_loaders import create_test_loader
+from test.testing_common_utils import values_tensor
+from src.bayesian_summarization.bayesian import BayesianSummarizer
 
 
 class TestBayesianSummarizer(unittest.TestCase):

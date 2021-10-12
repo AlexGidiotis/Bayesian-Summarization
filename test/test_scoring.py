@@ -2,7 +2,7 @@ import unittest
 
 import pandas as pd
 
-from src.scoring import score_generations, score_standard
+from src.common.scoring import score_generations, score_standard
 
 
 class TestScorer(unittest.TestCase):

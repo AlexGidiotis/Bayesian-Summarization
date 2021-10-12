@@ -4,9 +4,9 @@ import random
 
 import torch
 
-from src.bayesian import BayesianSummarizer
-from src.loaders import init_loader, load_model
-from src.scoring import score_standard
+from src.bayesian_summarization.bayesian import BayesianSummarizer
+from src.common.loaders import init_loader, load_model
+from src.common.scoring import score_standard
 
 
 def read_args():

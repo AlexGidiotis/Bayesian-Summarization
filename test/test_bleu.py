@@ -1,6 +1,6 @@
 import unittest
 
-from src.bleu import pair_bleu, analyze_generation_bleuvar
+from src.bayesian_summarization.bleu import pair_bleu, analyze_generation_bleuvar
 
 
 class TestBLEUVar(unittest.TestCase):

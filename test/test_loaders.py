@@ -3,7 +3,7 @@ import os
 import tempfile
 import unittest
 
-from src.loaders import init_loader, init_dataset, create_loader
+from src.common.loaders import init_loader, init_dataset, create_loader
 
 
 def write_test_json(datafile, n):

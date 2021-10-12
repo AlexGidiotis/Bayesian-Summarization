@@ -1,11 +1,10 @@
 import argparse
 import json
 import os
-import sys
 
 import pandas as pd
 
-from src.plotting import plot_rouge_retention, plot_increase, plot_bleuvar_retention
+from src.common.plotting import plot_rouge_retention, plot_increase, plot_bleuvar_retention
 
 
 def read_args():

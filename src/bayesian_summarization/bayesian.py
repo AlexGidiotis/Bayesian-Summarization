@@ -3,7 +3,7 @@ from tqdm import tqdm
 from transformers.models.pegasus.modeling_pegasus import PegasusEncoderLayer, PegasusDecoderLayer
 from transformers.models.bart.modeling_bart import BartEncoderLayer, BartDecoderLayer
 
-from src.bleu import analyze_generation_bleuvar
+from src.bayesian_summarization.bleu import analyze_generation_bleuvar
 
 
 class BayesianSummarizer:

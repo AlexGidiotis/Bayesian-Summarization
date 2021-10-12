@@ -6,8 +6,8 @@ import time
 
 import torch
 
-from src import active_sum
-from src.loaders import init_dataset
+from src.active_summarization import active_sum
+from src.common.loaders import init_dataset
 
 
 def read_args():

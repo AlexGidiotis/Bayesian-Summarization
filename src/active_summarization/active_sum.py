@@ -11,10 +11,10 @@ import numpy as np
 
 import torch
 
-from src import run_s2s
-from src.bayesian import BayesianSummarizer
-from src.loaders import load_model, create_loader
-from src.bleu import analyze_generation_bleuvar
+from src.summarization import run_s2s
+from src.bayesian_summarization.bayesian import BayesianSummarizer
+from src.common.loaders import load_model, create_loader
+from src.bayesian_summarization.bleu import analyze_generation_bleuvar
 
 
 def write_metrics(out_path, metrics, filename):
