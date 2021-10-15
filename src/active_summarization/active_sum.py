@@ -11,10 +11,10 @@ import numpy as np
 
 import torch
 
-from src.summarization import run_s2s
 from src.bayesian_summarization.bayesian import BayesianSummarizer
 from src.common.loaders import load_model, create_loader
 from src.bayesian_summarization.bleu import analyze_generation_bleuvar
+from src.summarization.sum_base import Summarizer
 
 
 def write_metrics(out_path, metrics, filename):
@@ -58,33 +58,47 @@ class ActiveSum:
     ):
         """
         Wraps the call to the summarization trainer with the required arguments
-
-        TODO: Currently we use argv to pass the arguments but this should reworked to be functional.
         """
         train_path = os.path.join(labeled_path, "train.json")
-        train_argv = [
-            f'{self.py_module}', f'--model_name_or_path={self.init_model}',
-            f'--tokenizer_name={self.init_model}', '--do_train', '--do_eval',
-            '--task=summarization', f'--train_file={train_path}',
-            f'--validation_file={eval_path}', f'--text_column={self.doc_col}',
-            f'--summary_column={self.sum_col}', f'--output_dir={model_path}',
-            f'--logging_dir={model_path}/logs', f'--seed={self.seed}',
-            f'--per_device_train_batch_size={self.batch_size}',
-            f'--per_device_eval_batch_size={self.batch_size}',
-            '--overwrite_output_dir', '--predict_with_generate', f'--max_val_samples={self.val_samples}',
-            f'--learning_rate={self.lr}', '--adafactor', f'--max_source_length={self.source_len}',
-            f'--max_target_length={self.target_len}', f'--val_max_target_length={self.target_len}',
-            '--pad_to_max_length', f'--num_beams={self.beams}', f'--num_train_epochs={epochs}',
-            f'--save_step={self.save_step}',
-            f'--save_total_limit={self.save_limit}', '--load_best_model_at_end',
-            f'--evaluation_strategy=epoch', f'--metric_for_best_model={self.metric}',
-            f'--greater_is_better=true'
-        ]
-        sys.argv = train_argv
+        sum_trainer = Summarizer(
+            model_name_or_path=self.init_model,
+            tokenizer_name=self.init_model,
+            train_file=train_path,
+            validation_file=eval_path,
+            text_column=self.doc_col,
+            summary_column=self.sum_col,
+            output_dir=model_path,
+            logging_dir=f"{model_path}/logs",
+            seed=self.seed,
+            per_device_train_batch_size=self.batch_size,
+            per_device_eval_batch_size=self.batch_size,
+            overwrite_output_dir=True,
+            max_val_samples=self.val_samples,
+            learning_rate=self.lr,
+            adafactor=True,
+            max_source_length=self.source_len,
+            max_target_length=self.target_len,
+            val_max_target_length=self.target_len,
+            pad_to_max_length=True,
+            num_beams=self.beams,
+            num_train_epochs=epochs,
+            save_step=self.save_step,
+            save_total_limit=self.save_limit,
+            load_best_model_at_end=True,
+            evaluation_strategy="epoch",
+            metric_for_best_model=self.metric,
+            greater_is_better="true"
+        )
 
-        train_metrics, eval_metrics, test_metrics = run_s2s.main()
+        sum_trainer.init_sum()
+        train_metrics = sum_trainer.train()
+        eval_metrics = sum_trainer.evaluate()
 
-        return train_metrics, eval_metrics, test_metrics
+        del sum_trainer
+        gc.collect()
+        torch.cuda.empty_cache()
+
+        return train_metrics, eval_metrics
 
     def train_step(self, labeled_path, model_path, eval_path, epochs):
         """Runs the basic training step and evaluates metrics.
@@ -92,7 +106,7 @@ class ActiveSum:
         Also, keeps track of the best model based on the primary metric
         and does checkpointing and metrics logging.
         """
-        train_metrics, eval_metrics, test_metrics = self.train(
+        train_metrics, eval_metrics = self.train(
             labeled_path=labeled_path,
             model_path=model_path,
             eval_path=eval_path,
@@ -161,7 +175,7 @@ class ActiveSum:
         self.data_sampler.remove_samples(sample_idxs)
 
         self.write_samples(sample, sample_idxs, sample_idxs, labeled_path)
-        train_metrics, eval_metrics, test_metrics = self.train(
+        train_metrics, eval_metrics = self.train(
             labeled_path=labeled_path,
             model_path=model_path,
             eval_path=eval_path,

@@ -1,5 +1,7 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Optional
+
+from transformers import Seq2SeqTrainingArguments
 
 
 @dataclass
@@ -43,14 +45,6 @@ class DataTrainingArguments:
     """
     Arguments pertaining to what data we are going to input our model for training and eval.
     """
-
-    task: str = field(
-        default="summarization",
-        metadata={
-            "help": "The name of the task, should be summarization (or summarization_{dataset} for evaluating "
-                    "pegasus) or translation (or translation_{xx}_to_{yy})."
-        },
-    )
     dataset_name: Optional[str] = field(
         default=None, metadata={"help": "The name of the dataset to use (via the datasets library)."}
     )
@@ -170,10 +164,6 @@ class DataTrainingArguments:
             if self.validation_file is not None:
                 extension = self.validation_file.split(".")[-1]
                 assert extension in ["csv", "json"], "`validation_file` should be a csv or a json file."
-        if not self.task.startswith("summarization") and not self.task.startswith("translation"):
-            raise ValueError(
-                "`task` should be summarization, summarization_{dataset}, translation or translation_{xx}_to_{yy}."
-            )
         if self.val_max_target_length is None:
             self.val_max_target_length = self.max_target_length
 
@@ -191,3 +181,15 @@ SUMMARIZATION_NAME_MAPPING = {
     "xsum": ("document", "summary"),
     "wiki_summary": ("article", "highlights"),
 }
+
+
+def parse_kargs(**kwargs):
+    """Parse kwargs into dataclasses"""
+    outputs = []
+    for dtype in [ModelArguments, DataTrainingArguments, Seq2SeqTrainingArguments]:
+        keys = {f.name for f in fields(dtype) if f.init}
+        inputs = {k: v for k, v in kwargs.items() if k in keys}
+        obj = dtype(**inputs)
+        outputs.append(obj)
+
+    return outputs

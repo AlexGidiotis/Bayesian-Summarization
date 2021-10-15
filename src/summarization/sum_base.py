@@ -1,13 +1,11 @@
 import logging
 import os
-import gc
 import sys
 
 import nltk  # Here to have a nice missing dependency error message early on
 import numpy as np
 from datasets import load_dataset, load_metric
 
-import torch
 import transformers
 from filelock import FileLock
 from transformers import (
@@ -15,16 +13,14 @@ from transformers import (
     AutoModelForSeq2SeqLM,
     AutoTokenizer,
     DataCollatorForSeq2Seq,
-    HfArgumentParser,
     Seq2SeqTrainer,
-    Seq2SeqTrainingArguments,
     default_data_collator,
     set_seed,
 )
 from transformers.trainer_utils import get_last_checkpoint, is_main_process
 from transformers import EarlyStoppingCallback
 
-from src.summarization.utils import ModelArguments, DataTrainingArguments, SUMMARIZATION_NAME_MAPPING
+from src.summarization.utils import SUMMARIZATION_NAME_MAPPING, parse_kargs
 
 with FileLock(".lock") as lock:
     nltk.download("punkt", quiet=True)
@@ -34,18 +30,25 @@ logger = logging.getLogger(__name__)
 
 class Summarizer:
     """
-    """
-    def __init__(self, model_args, data_args, training_args):
-        self.model_args = model_args
-        self.data_args = data_args
-        self.training_args = training_args
+    Example:
+    ```
+    sum_trainer = Summarizer(...)
 
-        self.last_checkpoint = self.detect_checkpoint()
+    sum_trainer.init_sum()
+
+    train_metrics = sum_trainer.train()
+    eval_metrics = sum_trainer.evaluate()
+    test_metrics = sum_trainer.predict()
+    ```
+    """
+    def __init__(self, **kwargs):
+        self.model_args, self.data_args, self.training_args = parse_kargs(**kwargs)
 
         self.setup_loggers()
 
         set_seed(self.training_args.seed)
 
+        self.last_checkpoint = None
         self.datasets = None
         self.model = None
         self.tokenizer = None
@@ -62,13 +65,14 @@ class Summarizer:
         self.trainer = None
 
     def init_sum(self):
-        self.datasets = self.load_dataset()
+        self.last_checkpoint = self.detect_checkpoint()
+        self.datasets = self.load_datasets()
         self.model, self.tokenizer = self.load_model()
 
         self.prefix = self.init_decoder()
         (
             self.train_dataset, self.eval_dataset, self.eot_eval_dataset, self.test_dataset, self.eot_val_samples
-        ) = self.init_dataset()
+        ) = self.init_datasets()
 
         self.data_collator = self.init_collocator()
 
@@ -114,7 +118,7 @@ class Summarizer:
             transformers.utils.logging.set_verbosity_info()
         logger.info("Training/evaluation parameters %s", self.training_args)
 
-    def load_dataset(self):
+    def load_datasets(self):
         """
         Get the datasets: you can either provide your own CSV/JSON training and evaluation files (see below)
         or just provide the name of one of the public datasets available on the hub at https://huggingface.co/datasets/
@@ -460,35 +464,3 @@ def postprocess_text(preds, labels):
     labels = ["\n".join(nltk.sent_tokenize(label)) for label in labels]
 
     return preds, labels
-
-
-def main():
-    # See all possible arguments in src/transformers/training_args.py
-    # or by passing the --help flag to this script.
-    # We now keep distinct sets of args, for a cleaner separation of concerns.
-
-    # WE SHOULD BE USING CONFIG JSON FILE TO PASS THE ARGS
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, Seq2SeqTrainingArguments))
-    if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
-        # If we pass only one argument to the script and it's the path to a json file,
-        # let's parse it to get our arguments.
-        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
-    else:
-        model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-
-    summarizer = Summarizer(model_args, data_args, training_args)
-    summarizer.init_sum()
-
-    train_metrics = summarizer.train()
-    eval_metrics = summarizer.evaluate()
-    test_metrics = summarizer.predict()
-
-    del summarizer
-    gc.collect()
-    torch.cuda.empty_cache()
-
-    return train_metrics, eval_metrics, test_metrics
-
-
-if __name__ == "__main__":
-    main()
