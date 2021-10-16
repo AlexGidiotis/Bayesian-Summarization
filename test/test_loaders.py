@@ -3,7 +3,7 @@ import os
 import tempfile
 import unittest
 
-from src.common.loaders import init_loader, init_dataset, create_loader
+from src.common.loaders import init_loader, init_dataset, create_loader, load_datasets
 
 
 def write_test_json(datafile, n):
@@ -30,6 +30,25 @@ def create_test_loader(args, tmp_dir):
 
 
 class TestDataLoader(unittest.TestCase):
+    def test_load_datasets(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            datafile = os.path.join(tmp_dir, "test.json")
+            args = {
+                "test_file": datafile,
+                "dataset_name": None,
+                "dataset_config_name": "",
+            }
+            write_test_json(datafile, n=4)
+
+            datasets = load_datasets(
+                dataset_name=args["dataset_name"],
+                dataset_config_name=args["dataset_config_name"],
+                test_file=args["test_file"])
+
+            self.assertIn("test", datasets)
+            self.assertEqual(len(datasets["test"]), 4)
+            del datasets
+
     def test_init_loader(self):
         args = {
             "test_batch_size": 1,

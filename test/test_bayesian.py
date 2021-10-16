@@ -10,7 +10,7 @@ from src.bayesian_summarization.bayesian import BayesianSummarizer
 
 
 class TestBayesianSummarizer(unittest.TestCase):
-    @mock.patch("src.bayesian.convert_bayesian_model")
+    @mock.patch("src.bayesian_summarization.bayesian.convert_bayesian_model")
     def setUp(self, mock_mc_model) -> None:
         self.batch_size = 2
         self.num_beams = 3

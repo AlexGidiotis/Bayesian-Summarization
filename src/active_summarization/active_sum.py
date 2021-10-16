@@ -1,5 +1,5 @@
+import logging
 import os
-import sys
 import shutil
 import time
 import json
@@ -15,6 +15,9 @@ from src.bayesian_summarization.bayesian import BayesianSummarizer
 from src.common.loaders import load_model, create_loader
 from src.bayesian_summarization.bleu import analyze_generation_bleuvar
 from src.summarization.sum_base import Summarizer
+
+
+logger = logging.getLogger(__name__)
 
 
 def write_metrics(out_path, metrics, filename):
@@ -39,6 +42,7 @@ class ActiveSum:
         self.source_len = None
         self.target_len = None
         self.val_samples = None
+        self.test_samples = None
         self.lr = None
         self.batch_size = None
         self.seed = None
@@ -74,6 +78,7 @@ class ActiveSum:
             per_device_eval_batch_size=self.batch_size,
             overwrite_output_dir=True,
             max_val_samples=self.val_samples,
+            max_test_samples=self.test_samples,
             learning_rate=self.lr,
             adafactor=True,
             max_source_length=self.source_len,
@@ -123,7 +128,7 @@ class ActiveSum:
             shutil.copy(os.path.join(model_path, "pytorch_model.bin"), best_checkpoint_path)
             self.best_score = eval_metrics[f"eval_{self.metric}"]
 
-            print(f"Best model with {self.metric} score {self.best_score} saved to {best_checkpoint_path}")
+            logger.info(f"Best model with {self.metric} score {self.best_score} saved to {best_checkpoint_path}")
 
         linecache.clearcache()
 
@@ -181,7 +186,7 @@ class ActiveSum:
             eval_path=eval_path,
             epochs=epochs,)
 
-        print("Finished initial training")
+        logger.info("Finished initial training")
         self.best_score = eval_metrics[f"eval_{self.metric}"]
 
         write_metrics(model_path, eval_metrics, filename="eval_metrics_hist")
@@ -200,7 +205,7 @@ class ActiveSum:
 
         # remove samples from data_sampler
         self.data_sampler.remove_samples(selected_idxs)
-        print(f"{len(selected_idxs)} have been removed from the pool")
+        logger.info(f"{len(selected_idxs)} have been removed from the pool")
 
 
 class BAS(ActiveSum):
@@ -315,7 +320,7 @@ class BAS(ActiveSum):
         4) add the S examples with the highest BLEUVar to the labelled set
         5) train on the extended labelled set
         """
-        print(f"Learning step {step}")
+        logger.info(f"Learning step {step}")
         si_time = time.time()
         sample, sample_idxs = self.data_sampler.sample_data(k=k)
         mc_gens = self.mc_sample(sample_idxs, model_path, n)
@@ -333,7 +338,7 @@ class BAS(ActiveSum):
 
         self.train_step(labeled_path, model_path, eval_path, epochs)
         ei_time = time.time()
-        print(f"Finished learning step {step}: {ei_time - si_time} sec.")
+        logger.info(f"Finished learning step {step}: {ei_time - si_time} sec.")
 
 
 class RandomActiveSum(ActiveSum):
@@ -396,7 +401,7 @@ class RandomActiveSum(ActiveSum):
         1) select a pool of unlabeled examples
         2) randomly add S examples from the unlabelled pool to the labelled set
         5) train on the extended labelled set"""
-        print(f"Learning step {step}")
+        logger.info(f"Learning step {step}")
         si_time = time.time()
         sample, sample_idxs = self.data_sampler.sample_data(k=k)
 
@@ -408,7 +413,7 @@ class RandomActiveSum(ActiveSum):
 
         self.train_step(labeled_path, model_path, eval_path, epochs)
         ei_time = time.time()
-        print(f"Finished learning step {step}: {ei_time - si_time} sec.")
+        logger.info(f"Finished learning step {step}: {ei_time - si_time} sec.")
 
 
 class DataSampler:

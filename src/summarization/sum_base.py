@@ -20,6 +20,7 @@ from transformers import (
 from transformers.trainer_utils import get_last_checkpoint, is_main_process
 from transformers import EarlyStoppingCallback
 
+from src.common.loaders import load_datasets
 from src.summarization.utils import SUMMARIZATION_NAME_MAPPING, parse_kargs
 
 with FileLock(".lock") as lock:
@@ -30,6 +31,9 @@ logger = logging.getLogger(__name__)
 
 class Summarizer:
     """
+    Basic class that runs summarization training and prediction using datasets.
+
+
     Example:
     ```
     sum_trainer = Summarizer(...)
@@ -58,7 +62,6 @@ class Summarizer:
         self.train_dataset = None
         self.eval_dataset = None
         self.eot_eval_dataset = None
-        self.eot_val_samples = None
         self.test_dataset = None
         self.data_collator = None
         self.metric = None
@@ -66,12 +69,17 @@ class Summarizer:
 
     def init_sum(self):
         self.last_checkpoint = self.detect_checkpoint()
-        self.datasets = self.load_datasets()
+        self.datasets = load_datasets(
+            dataset_name=self.data_args.dataset_name,
+            dataset_config_name=self.data_args.dataset_config_name,
+            train_file=self.data_args.train_file,
+            validation_file=self.data_args.validation_file,
+            test_file=self.data_args.test_file)
         self.model, self.tokenizer = self.load_model()
 
         self.prefix = self.init_decoder()
         (
-            self.train_dataset, self.eval_dataset, self.eot_eval_dataset, self.test_dataset, self.eot_val_samples
+            self.train_dataset, self.eval_dataset, self.eot_eval_dataset, self.test_dataset
         ) = self.init_datasets()
 
         self.data_collator = self.init_collocator()
@@ -120,6 +128,8 @@ class Summarizer:
 
     def load_datasets(self):
         """
+        DEPRECATED
+
         Get the datasets: you can either provide your own CSV/JSON training and evaluation files (see below)
         or just provide the name of one of the public datasets available on the hub at https://huggingface.co/datasets/
         (the dataset will be downloaded automatically from the datasets Hub).
@@ -197,6 +207,15 @@ class Summarizer:
         return prefix
 
     def init_datasets(self):
+        """
+        Initializes loaded datasets for preprocessing, training and prediction.
+
+        :returns
+        train_dataset:
+        eval_dataset:
+        eot_eval_dataset:
+        test_dataset:
+        """
         # We need to tokenize inputs and targets.
         column_names = self.datasets["train"].column_names
 
@@ -230,7 +249,7 @@ class Summarizer:
 
         if self.training_args.label_smoothing_factor > 0 and not hasattr(
                 self.model, "prepare_decoder_input_ids_from_labels"):
-            logger.warn(
+            logger.warning(
                 "label_smoothing is enabled but the `prepare_decoder_input_ids_from_labels` method is not defined for"
                 f"`{self.model.__class__.__name__}`. "
                 "This will lead to loss being calculated twice and will take up more memory"
@@ -264,7 +283,6 @@ class Summarizer:
             model_inputs["labels"] = labels["input_ids"]
             return model_inputs
 
-        eot_val_samples = None
         if "train" not in self.datasets:
             raise ValueError("training requires a train dataset")
         train_dataset = self.datasets["train"]
@@ -292,9 +310,8 @@ class Summarizer:
             load_from_cache_file=not self.data_args.overwrite_cache,
         )
         eot_eval_dataset = self.datasets["validation"]  # end-of-training evaluation with more data
-        if self.data_args.max_val_samples is not None:
-            eot_val_samples = 5000
-            eot_eval_dataset = eot_eval_dataset.select(range(eot_val_samples))
+        if self.data_args.max_test_samples is not None:
+            eot_eval_dataset = eot_eval_dataset.select(range(self.data_args.max_test_samples))
         eot_eval_dataset = eot_eval_dataset.map(
             preprocess_function,
             batched=True,
@@ -317,7 +334,7 @@ class Summarizer:
             load_from_cache_file=not self.data_args.overwrite_cache,
         )
 
-        return train_dataset, eval_dataset, eot_eval_dataset, test_dataset, eot_val_samples
+        return train_dataset, eval_dataset, eot_eval_dataset, test_dataset
 
     def init_collocator(self):
         label_pad_token_id = -100 if self.data_args.ignore_pad_token_for_loss else self.tokenizer.pad_token_id
@@ -408,10 +425,11 @@ class Summarizer:
             num_beams=self.data_args.num_beams,
             metric_key_prefix="eval"
         )
-        max_val_samples = (
-            self.eot_val_samples if self.data_args.max_val_samples is not None else len(self.eot_eval_dataset)
+        max_eot_val_samples = (
+            self.data_args.max_test_samples
+            if self.data_args.max_test_samples is not None else len(self.eot_eval_dataset)
         )
-        metrics["eval_samples"] = min(max_val_samples, len(self.eot_eval_dataset))
+        metrics["eval_samples"] = min(max_eot_val_samples, len(self.eot_eval_dataset))
 
         eval_metrics = metrics
 

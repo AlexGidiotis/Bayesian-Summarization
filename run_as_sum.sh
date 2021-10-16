@@ -12,7 +12,8 @@ python -u as_learn.py \
     --max_source_length 256 --max_summary_length 62 \
     --batch_size 6 \
     --num_beams 3 \
-    --max_test_samples 100 \
+    --max_val_samples 100 \
+    --max_test_samples 5000 \
     --learning_rate 1e-4 \
     --epochs 10 \
     --save_step 100 --save_limit 1 \

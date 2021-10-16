@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import sys
 import random
@@ -8,6 +9,9 @@ import torch
 
 from src.active_summarization import active_sum
 from src.common.loaders import init_dataset
+
+
+logger = logging.getLogger(__name__)
 
 
 def read_args():
@@ -34,6 +38,7 @@ def read_args():
     parser.add_argument("--init_model", type=str, help="")
     parser.add_argument("--max_source_length", type=int, default=256, help="")
     parser.add_argument("--max_summary_length", type=int, default=62, help="")
+    parser.add_argument("--max_val_samples", type=int, help="")
     parser.add_argument("--max_test_samples", type=int, help="")
     parser.add_argument("--batch_size", type=int, default=8, help="")
     parser.add_argument("--num_beams", type=int, default=3, help="")
@@ -67,13 +72,13 @@ def main():
         os.mkdir(args.output_path)
     data_path = os.path.join(args.output_path, "data")
     if args.resume:
-        print("Resuming session")
+        logger.info("Resuming session")
         if not os.path.exists(data_path):
-            print("Data dir not found. Unable to resume session.")
+            logger.info("Data dir not found. Unable to resume session.")
             sys.exit()
     else:
         if os.path.exists(data_path):
-            print("Data dir already exists. Aborting.")
+            logger.info("Data dir already exists. Aborting.")
             sys.exit()
         os.mkdir(data_path)
 
@@ -86,7 +91,7 @@ def main():
         split="train")
     train_sampler = active_sum.DataSampler(train_dataset, split="train")
 
-    print(f"{args.acquisition} L: {args.L} K: {args.K} S: {args.S} steps: {args.steps}")
+    logger.info(f"{args.acquisition} L: {args.L} K: {args.K} S: {args.S} steps: {args.steps}")
 
     if args.acquisition == "bayesian":
         active_learner = active_sum.BAS(
@@ -99,7 +104,8 @@ def main():
             init_model=args.init_model,
             source_len=args.max_source_length,
             target_len=args.max_summary_length,
-            val_samples=args.max_test_samples,
+            val_samples=args.max_val_samples,
+            test_samples=args.max_test_samples,
             batch_size=args.batch_size,
             beams=args.num_beams,
             lr=args.learning_rate,
@@ -118,7 +124,8 @@ def main():
             init_model=args.init_model,
             source_len=args.max_source_length,
             target_len=args.max_summary_length,
-            val_samples=args.max_test_samples,
+            val_samples=args.max_val_samples,
+            test_samples=args.max_test_samples,
             batch_size=args.batch_size,
             beams=args.num_beams,
             lr=args.learning_rate,
@@ -155,7 +162,7 @@ def main():
             epochs=args.epochs)
 
     et = time.time()
-    print(f"Elapsed time: {et - st} sec.")
+    logger.info(f"Elapsed time: {et - st} sec.")
 
 
 if __name__ == "__main__":
