@@ -254,18 +254,19 @@ class Summarizer:
         )
 
         max_target_length = self.data_args.val_max_target_length
-        if "test" not in self.datasets:
-            raise ValueError("prediction requires a test dataset")
-        test_dataset = self.datasets["test"]
-        if self.data_args.max_test_samples is not None:
-            test_dataset = test_dataset.select(range(self.data_args.max_test_samples))
-        test_dataset = test_dataset.map(
-            preprocess_function,
-            batched=True,
-            num_proc=self.data_args.preprocessing_num_workers,
-            remove_columns=column_names,
-            load_from_cache_file=not self.data_args.overwrite_cache,
-        )
+        if "test" in self.datasets:
+            test_dataset = self.datasets["test"]
+            if self.data_args.max_test_samples is not None:
+                test_dataset = test_dataset.select(range(self.data_args.max_test_samples))
+            test_dataset = test_dataset.map(
+                preprocess_function,
+                batched=True,
+                num_proc=self.data_args.preprocessing_num_workers,
+                remove_columns=column_names,
+                load_from_cache_file=not self.data_args.overwrite_cache,
+            )
+        else:
+            test_dataset = None
 
         return train_dataset, eval_dataset, eot_eval_dataset, test_dataset
 
