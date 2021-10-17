@@ -1,6 +1,6 @@
 import logging
 
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoConfig
 import torch
 
 from datasets import load_dataset
@@ -112,14 +112,43 @@ def create_loader(dataset, batch_size, sample):
     return data_loader
 
 
-def load_model(device, model_path, tokenizer_name=None):
-    """Load model and tokenizer"""
-    logger.info(f"Loading tokenizer {tokenizer_name if tokenizer_name else model_path}")
-    tokenizer = AutoTokenizer.from_pretrained(
-        tokenizer_name if tokenizer_name else model_path)
+def load_model(
+        model_name_or_path,
+        config_name=None,
+        cache_dir=None,
+        model_revision="main",
+        use_auth_token=False,
+        tokenizer_name=None,
+        use_fast_tokenizer=True):
+    """
+    Load pretrained model and tokenizer
 
-    logger.info(f"Loading model from {model_path}")
+    Distributed training:
+    The .from_pretrained methods guarantee that only one local process can concurrently
+    download model & vocab.
+    """
+    config = AutoConfig.from_pretrained(
+        config_name if config_name else model_name_or_path,
+        cache_dir=cache_dir,
+        revision=model_revision,
+        use_auth_token=True if use_auth_token else None,
+    )
+    logger.info(f"Loading tokenizer {tokenizer_name if tokenizer_name else model_name_or_path}")
+    tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer_name if tokenizer_name else model_name_or_path,
+        cache_dir=cache_dir,
+        use_fast=use_fast_tokenizer,
+        revision=model_revision,
+        use_auth_token=True if use_auth_token else None,
+    )
+    logger.info(f"Loading model from {model_name_or_path}")
     model = AutoModelForSeq2SeqLM.from_pretrained(
-        model_path).to(device)
+        model_name_or_path,
+        from_tf=bool(".ckpt" in model_name_or_path),
+        config=config,
+        cache_dir=cache_dir,
+        revision=model_revision,
+        use_auth_token=True if use_auth_token else None,
+    )
 
     return model, tokenizer

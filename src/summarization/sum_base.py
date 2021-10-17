@@ -9,9 +9,6 @@ from datasets import load_dataset, load_metric
 import transformers
 from filelock import FileLock
 from transformers import (
-    AutoConfig,
-    AutoModelForSeq2SeqLM,
-    AutoTokenizer,
     DataCollatorForSeq2Seq,
     Seq2SeqTrainer,
     default_data_collator,
@@ -20,7 +17,7 @@ from transformers import (
 from transformers.trainer_utils import get_last_checkpoint, is_main_process
 from transformers import EarlyStoppingCallback
 
-from src.common.loaders import load_datasets
+from src.common.loaders import load_datasets, load_model
 from src.summarization.utils import SUMMARIZATION_NAME_MAPPING, parse_kargs
 
 with FileLock(".lock") as lock:
@@ -75,7 +72,14 @@ class Summarizer:
             train_file=self.data_args.train_file,
             validation_file=self.data_args.validation_file,
             test_file=self.data_args.test_file)
-        self.model, self.tokenizer = self.load_model()
+        self.model, self.tokenizer = load_model(
+            model_name_or_path=self.model_args.model_name_or_path,
+            config_name=self.model_args.config_name,
+            cache_dir=self.model_args.cache_dir,
+            model_revision=self.model_args.model_revision,
+            use_auth_token=self.model_args.use_auth_token,
+            tokenizer_name=self.model_args.tokenizer_name,
+            use_fast_tokenizer=self.model_args.use_fast_tokenizer)
 
         self.prefix = self.init_decoder()
         (
@@ -125,77 +129,6 @@ class Summarizer:
         if is_main_process(self.training_args.local_rank):
             transformers.utils.logging.set_verbosity_info()
         logger.info("Training/evaluation parameters %s", self.training_args)
-
-    def load_datasets(self):
-        """
-        DEPRECATED
-
-        Get the datasets: you can either provide your own CSV/JSON training and evaluation files (see below)
-        or just provide the name of one of the public datasets available on the hub at https://huggingface.co/datasets/
-        (the dataset will be downloaded automatically from the datasets Hub).
-
-        For CSV/JSON files in the summarization task, this script will use the first column for the full texts and the
-        second column for the summaries (unless you specify column names for this with the `text_column` and
-        `summary_column` arguments).
-        For translation, only JSON files are supported, with one field named "translation" containing two keys for the
-        source and target languages (unless you adapt what follows).
-
-        In distributed training, the load_dataset function guarantee that only one local process can concurrently
-        download the dataset.
-
-        See more about loading any type of standard or custom dataset (from files, python dict, pandas DataFrame, etc) at
-        https://huggingface.co/docs/datasets/loading_datasets.html.
-        """
-        if self.data_args.dataset_name is not None:
-            # Downloading and loading a dataset from the hub.
-            datasets = load_dataset(self.data_args.dataset_name, self.data_args.dataset_config_name)
-        else:
-            data_files = {}
-            extension = ""
-            if self.data_args.train_file is not None:
-                data_files["train"] = self.data_args.train_file
-                extension = self.data_args.train_file.split(".")[-1]
-            if self.data_args.validation_file is not None:
-                data_files["validation"] = self.data_args.validation_file
-                extension = self.data_args.validation_file.split(".")[-1]
-            if self.data_args.test_file is not None:
-                data_files["test"] = self.data_args.test_file
-                extension = self.data_args.test_file.split(".")[-1]
-            datasets = load_dataset(extension, data_files=data_files)
-
-        return datasets
-
-    def load_model(self):
-        """
-        Load pretrained model and tokenizer
-
-        Distributed training:
-        The .from_pretrained methods guarantee that only one local process can concurrently
-        download model & vocab.
-        """
-        config = AutoConfig.from_pretrained(
-            self.model_args.config_name if self.model_args.config_name else self.model_args.model_name_or_path,
-            cache_dir=self.model_args.cache_dir,
-            revision=self.model_args.model_revision,
-            use_auth_token=True if self.model_args.use_auth_token else None,
-        )
-        tokenizer = AutoTokenizer.from_pretrained(
-            self.model_args.tokenizer_name if self.model_args.tokenizer_name else self.model_args.model_name_or_path,
-            cache_dir=self.model_args.cache_dir,
-            use_fast=self.model_args.use_fast_tokenizer,
-            revision=self.model_args.model_revision,
-            use_auth_token=True if self.model_args.use_auth_token else None,
-        )
-        model = AutoModelForSeq2SeqLM.from_pretrained(
-            self.model_args.model_name_or_path,
-            from_tf=bool(".ckpt" in self.model_args.model_name_or_path),
-            config=config,
-            cache_dir=self.model_args.cache_dir,
-            revision=self.model_args.model_revision,
-            use_auth_token=True if self.model_args.use_auth_token else None,
-        )
-
-        return model, tokenizer
 
     def init_decoder(self):
         """Set decoder_start_token_id"""

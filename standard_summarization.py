@@ -47,8 +47,8 @@ def main():
         os.mkdir(args.output_path)
 
     test_loader = init_loader(test_batch_size=args.test_batch_size, split="test", data_path=args.data_path, dataset_name=args.dataset_name, dataset_config_name=args.dataset_config_name, max_test_samples=args.max_test_samples)
-    model, tokenizer = load_model(model_path=args.model_path, tokenizer_name=args.tokenizer_name, device=device)
-    
+    model, tokenizer = load_model(model_name_or_path=args.model_path, tokenizer_name=args.tokenizer_name)
+    model = model.to(device)
     model.eval()
     generated_sums, target_sums, article_ids = generate_summaries(
         test_loader, model, tokenizer, device=device, args=args)
