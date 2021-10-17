@@ -11,7 +11,12 @@ from src.active_summarization import active_sum
 from src.common.loaders import init_dataset
 
 
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+    datefmt="%m/%d/%Y %H:%M:%S",
+    handlers=[logging.StreamHandler(sys.stdout)],)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def read_args():
