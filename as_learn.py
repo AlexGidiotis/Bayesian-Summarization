@@ -18,6 +18,7 @@ def read_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, help="")
     parser.add_argument("--output_path", type=str, help="")
+    parser.add_argument("--train_file", type=str, help="")
     parser.add_argument("--validation_file", type=str, help="")
     parser.add_argument("--dataset_name", type=str, help="")
     parser.add_argument("--dataset_config_name", type=str, help="")
@@ -85,7 +86,7 @@ def main():
     train_model = os.path.join(args.output_path, "models")
 
     train_dataset = init_dataset(
-        data_path=args.data_path,
+        data_path=args.train_file,
         dataset_name=args.dataset_name,
         dataset_config_name=args.dataset_config_name,
         split="train")
