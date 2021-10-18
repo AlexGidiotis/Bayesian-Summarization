@@ -45,7 +45,7 @@ class Summarizer:
     def __init__(self, **kwargs):
         self.model_args, self.data_args, self.training_args = parse_kargs(**kwargs)
 
-        self.setup_loggers()
+        # self.setup_loggers()
 
         set_seed(self.training_args.seed)
 
@@ -110,12 +110,12 @@ class Summarizer:
 
     def setup_loggers(self):
         # Setup logging
-        # logging.basicConfig(
-        #     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
-        #     datefmt="%m/%d/%Y %H:%M:%S",
-        #     handlers=[logging.StreamHandler(sys.stdout)],
-        # )
-        # logger.setLevel(logging.INFO if is_main_process(self.training_args.local_rank) else logging.WARN)
+        logging.basicConfig(
+            format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+            datefmt="%m/%d/%Y %H:%M:%S",
+            handlers=[logging.StreamHandler(sys.stdout)],
+        )
+        logger.setLevel(logging.INFO if is_main_process(self.training_args.local_rank) else logging.WARN)
 
         # Log on each process the small summary:
         logger.warning(
