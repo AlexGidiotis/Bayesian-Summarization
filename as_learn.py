@@ -30,8 +30,6 @@ def set_global_logging_level(level=logging.ERROR, prefices=[""]):
           The match is a case-sensitive `module_name.startswith(prefix)`
     """
     prefix_re = re.compile(fr'^(?:{ "|".join(prefices) })')
-    print(logging.root.manager.loggerDict)
-    sys.exit()
     for name in logging.root.manager.loggerDict:
         if re.match(prefix_re, name):
             logging.getLogger(name).setLevel(level)
