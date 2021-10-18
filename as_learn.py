@@ -17,6 +17,7 @@ logging.basicConfig(
     datefmt="%m/%d/%Y %H:%M:%S",
     handlers=[logging.StreamHandler(sys.stdout)],)
 
+
 def set_global_logging_level(level=logging.ERROR, prefices=[""]):
     """
     Override logging levels of different modules based on their name as a prefix.
@@ -29,12 +30,14 @@ def set_global_logging_level(level=logging.ERROR, prefices=[""]):
           The match is a case-sensitive `module_name.startswith(prefix)`
     """
     prefix_re = re.compile(fr'^(?:{ "|".join(prefices) })')
+    print(logging.root.manager.loggerDict)
+    sys.exit()
     for name in logging.root.manager.loggerDict:
         if re.match(prefix_re, name):
             logging.getLogger(name).setLevel(level)
 
 
-set_global_logging_level(logging.ERROR, ["transformers"])
+set_global_logging_level(logging.ERROR, ["transformers.configuration_utils"])
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
