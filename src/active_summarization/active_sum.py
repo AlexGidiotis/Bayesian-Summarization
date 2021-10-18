@@ -102,7 +102,7 @@ class ActiveSum:
         sum_trainer.init_sum()
         train_metrics = sum_trainer.train()
         eval_metrics = sum_trainer.evaluate()
-
+        print(train_metrics, eval_metrics)
         del sum_trainer
         gc.collect()
         torch.cuda.empty_cache()
