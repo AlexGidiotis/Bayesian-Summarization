@@ -199,12 +199,12 @@ class Summarizer:
                 truncation=True)
 
             # Setup the tokenizer for targets
-            with self.tokenizer.as_target_tokenizer():
-                labels = self.tokenizer(
-                    targets,
-                    max_length=max_target_length,
-                    padding=padding,
-                    truncation=True)
+            target_tokenizer = self.tokenizer.as_target_tokenizer()
+            labels = target_tokenizer(
+                targets,
+                max_length=max_target_length,
+                padding=padding,
+                truncation=True)
 
             # If we are padding here, replace all tokenizer.pad_token_id in the labels by -100 when we want to ignore
             # padding in the loss.
