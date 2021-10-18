@@ -4,7 +4,7 @@ import sys
 
 import nltk  # Here to have a nice missing dependency error message early on
 import numpy as np
-from datasets import load_dataset, load_metric
+from datasets import load_metric
 
 import transformers
 from filelock import FileLock
@@ -110,12 +110,12 @@ class Summarizer:
 
     def setup_loggers(self):
         # Setup logging
-        logging.basicConfig(
-            format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
-            datefmt="%m/%d/%Y %H:%M:%S",
-            handlers=[logging.StreamHandler(sys.stdout)],
-        )
-        logger.setLevel(logging.INFO if is_main_process(self.training_args.local_rank) else logging.WARN)
+        # logging.basicConfig(
+        #     format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+        #     datefmt="%m/%d/%Y %H:%M:%S",
+        #     handlers=[logging.StreamHandler(sys.stdout)],
+        # )
+        # logger.setLevel(logging.INFO if is_main_process(self.training_args.local_rank) else logging.WARN)
 
         # Log on each process the small summary:
         logger.warning(
