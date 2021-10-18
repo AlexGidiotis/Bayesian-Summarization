@@ -1,4 +1,3 @@
-import copy
 import logging
 import os
 import sys
@@ -190,19 +189,18 @@ class Summarizer:
             )
 
         def preprocess_function(examples):
-            tokenizer = copy.copy(self.tokenizer)
             inputs = examples[text_column]
             targets = examples[summary_column]
             inputs = [self.prefix + inp for inp in inputs]
-            model_inputs = tokenizer(
+            model_inputs = self.tokenizer(
                 inputs,
                 max_length=self.data_args.max_source_length,
                 padding=padding,
                 truncation=True)
 
             # Setup the tokenizer for targets
-            with tokenizer.as_target_tokenizer():
-                labels = tokenizer(
+            with self.tokenizer.as_target_tokenizer():
+                labels = self.tokenizer(
                     targets,
                     max_length=max_target_length,
                     padding=padding,
@@ -212,51 +210,60 @@ class Summarizer:
             # padding in the loss.
             if padding == "max_length" and self.data_args.ignore_pad_token_for_loss:
                 labels["input_ids"] = [
-                    [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in labels["input_ids"]
+                    [(l if l != self.tokenizer.pad_token_id else -100) for l in label] for label in labels["input_ids"]
                 ]
 
             model_inputs["labels"] = labels["input_ids"]
             return model_inputs
 
-        if "train" not in self.datasets:
-            raise ValueError("training requires a train dataset")
-        train_dataset = self.datasets["train"]
-        if self.data_args.max_train_samples is not None:
-            train_dataset = train_dataset.select(range(self.data_args.max_train_samples))
-        train_dataset = train_dataset.map(
-            preprocess_function,
-            batched=True,
-            num_proc=self.data_args.preprocessing_num_workers,
-            remove_columns=column_names,
-            load_from_cache_file=not self.data_args.overwrite_cache,
-        )
+        if self.training_args.do_train:
+            if "train" not in self.datasets:
+                raise ValueError("training requires a train dataset")
+            train_dataset = self.datasets["train"]
+            if self.data_args.max_train_samples is not None:
+                train_dataset = train_dataset.select(range(self.data_args.max_train_samples))
+            train_dataset = train_dataset.map(
+                preprocess_function,
+                batched=True,
+                num_proc=self.data_args.preprocessing_num_workers,
+                remove_columns=column_names,
+                load_from_cache_file=not self.data_args.overwrite_cache,
+            )
+        else:
+            train_dataset = None
 
-        max_target_length = self.data_args.val_max_target_length
-        if "validation" not in self.datasets:
-            raise ValueError("evaluation requires a validation dataset")
-        eval_dataset = self.datasets["validation"]
-        if self.data_args.max_val_samples is not None:
-            eval_dataset = eval_dataset.select(range(self.data_args.max_val_samples))
-        eval_dataset = eval_dataset.map(
-            preprocess_function,
-            batched=True,
-            num_proc=self.data_args.preprocessing_num_workers,
-            remove_columns=column_names,
-            load_from_cache_file=not self.data_args.overwrite_cache,
-        )
-        eot_eval_dataset = self.datasets["validation"]  # end-of-training evaluation with more data
-        if self.data_args.max_test_samples is not None:
-            eot_eval_dataset = eot_eval_dataset.select(range(self.data_args.max_test_samples))
-        eot_eval_dataset = eot_eval_dataset.map(
-            preprocess_function,
-            batched=True,
-            num_proc=self.data_args.preprocessing_num_workers,
-            remove_columns=column_names,
-            load_from_cache_file=not self.data_args.overwrite_cache,
-        )
+        if self.training_args.do_eval:
+            max_target_length = self.data_args.val_max_target_length
+            if "validation" not in self.datasets:
+                raise ValueError("evaluation requires a validation dataset")
+            eval_dataset = self.datasets["validation"]
+            if self.data_args.max_val_samples is not None:
+                eval_dataset = eval_dataset.select(range(self.data_args.max_val_samples))
+            eval_dataset = eval_dataset.map(
+                preprocess_function,
+                batched=True,
+                num_proc=self.data_args.preprocessing_num_workers,
+                remove_columns=column_names,
+                load_from_cache_file=not self.data_args.overwrite_cache,
+            )
+            eot_eval_dataset = self.datasets["validation"]  # end-of-training evaluation with more data
+            if self.data_args.max_test_samples is not None:
+                eot_eval_dataset = eot_eval_dataset.select(range(self.data_args.max_test_samples))
+            eot_eval_dataset = eot_eval_dataset.map(
+                preprocess_function,
+                batched=True,
+                num_proc=self.data_args.preprocessing_num_workers,
+                remove_columns=column_names,
+                load_from_cache_file=not self.data_args.overwrite_cache,
+            )
+        else:
+            eval_dataset = None
+            eot_eval_dataset = None
 
-        max_target_length = self.data_args.val_max_target_length
-        if "test" in self.datasets:
+        if self.training_args.do_predict:
+            max_target_length = self.data_args.val_max_target_length
+            if "test" not in self.datasets:
+                raise ValueError("prediction requires a test dataset")
             test_dataset = self.datasets["test"]
             if self.data_args.max_test_samples is not None:
                 test_dataset = test_dataset.select(range(self.data_args.max_test_samples))

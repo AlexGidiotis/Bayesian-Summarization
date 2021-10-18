@@ -65,6 +65,7 @@ class ActiveSum:
         """
         train_path = os.path.join(labeled_path, "train.json")
         sum_trainer = Summarizer(
+            task="summarization",
             model_name_or_path=self.init_model,
             tokenizer_name=self.init_model,
             train_file=train_path,
@@ -87,12 +88,15 @@ class ActiveSum:
             pad_to_max_length=True,
             num_beams=self.beams,
             num_train_epochs=epochs,
-            save_step=self.save_step,
+            save_steps=self.save_step,
             save_total_limit=self.save_limit,
             load_best_model_at_end=True,
             evaluation_strategy="epoch",
             metric_for_best_model=self.metric,
-            greater_is_better="true"
+            greater_is_better=True,
+            do_train=True,
+            do_eval=True,
+            do_predict=False,
         )
 
         sum_trainer.init_sum()
