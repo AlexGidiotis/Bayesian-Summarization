@@ -65,7 +65,6 @@ class ActiveSum:
         """
         train_path = os.path.join(labeled_path, "train.json")
         sum_trainer = Summarizer(
-            task="summarization",
             model_name_or_path=self.init_model,
             tokenizer_name=self.init_model,
             train_file=train_path,
@@ -96,6 +95,7 @@ class ActiveSum:
             greater_is_better=True,
             do_train=True,
             do_eval=True,
+            predict_with_generate=True,
             do_predict=False,
         )
 
