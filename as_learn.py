@@ -36,8 +36,9 @@ def set_global_logging_level(level=logging.ERROR, prefices=[""]):
 
 
 set_global_logging_level(logging.ERROR, ["transformers.configuration_utils"])
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
 
 def read_args():
     parser = argparse.ArgumentParser()

@@ -45,7 +45,7 @@ class Summarizer:
     def __init__(self, **kwargs):
         self.model_args, self.data_args, self.training_args = parse_kargs(**kwargs)
 
-        # self.setup_loggers()
+        self.setup_loggers()
 
         set_seed(self.training_args.seed)
 
