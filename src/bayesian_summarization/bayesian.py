@@ -54,9 +54,9 @@ class BayesianSummarizer:
             num_beams=3,
             n=10):
         """
-        Runs MC dropout generation given a batch of data and a Bayesian model
+        Runs MC dropout generation N times given a batch of data and a Bayesian model
         
-        Returns: N summaries generated with MC dropout for each input in the batch.
+        Returns: N lists of generated summaries.
         """
         model_inputs = self.tokenizer(
             batch[text_column],
@@ -103,32 +103,60 @@ class BayesianSummarizer:
         bleuvars = []
         num_articles = 0
         for i, batch in enumerate(tqdm(dataloader)):
-            generations, input_ids = self.run_mc_dropout(
-                batch,
-                device,
-                text_column,
-                max_source_length,
-                num_beams,
-                n)
-            
+            generations_r, gen_ids = self.mc_dropout_batch(
+                batch=batch,
+                device=device,
+                text_column=text_column,
+                max_source_length=max_source_length,
+                num_beams=num_beams,
+                n=n,
+                num_articles=num_articles)
+
             if summary_column is not None:
                 target_sums += batch[summary_column]
 
-            try:
-                article_ids += batch["article_id"]
-            except KeyError:
-                article_ids += range(num_articles, num_articles + len(input_ids))
+            article_ids += gen_ids
+            num_articles += len(gen_ids)
 
-            num_articles += len(input_ids)
-            generations_r = [list(x) for x in zip(*generations)]
-            
             for gen_list in generations_r:
                 bleuvar, min_bleuvar, min_gen_idx, min_gen = analyze_generation_bleuvar(gen_list, n=n)
                 generated_sums.append(min_gen)
                 bleuvars.append(bleuvar)
 
         return generated_sums, target_sums, article_ids, bleuvars
-    
+
+    def mc_dropout_batch(
+            self,
+            batch,
+            device,
+            text_column,
+            num_articles,
+            max_source_length=128,
+            num_beams=3,
+            n=10):
+        """
+        Runs MC dropout generation given a batch of data and a Bayesian model.
+
+        Returns: N summaries generated with MC dropout for each input in the batch and the input
+            article ids.
+        """
+        generations, input_ids = self.run_mc_dropout(
+            batch,
+            device,
+            text_column,
+            max_source_length,
+            num_beams,
+            n)
+
+        try:
+            gen_ids = batch["article_id"]
+        except KeyError:
+            gen_ids = range(num_articles, num_articles + len(input_ids))
+
+        generations_r = [list(x) for x in zip(*generations)]
+
+        return generations_r, gen_ids
+
     def generate_mc_summaries(
             self,
             dataloader,
@@ -146,27 +174,22 @@ class BayesianSummarizer:
         target_sums = []
         generated_sums = []
         article_ids = []
-        bleuvars = []
         num_articles = 0
         for i, batch in enumerate(tqdm(dataloader)):
-            generations, input_ids = self.run_mc_dropout(
-                batch,
-                device,
-                text_column,
-                max_source_length,
-                num_beams,
-                n)
+            generations_r, gen_ids = self.mc_dropout_batch(
+                batch=batch,
+                device=device,
+                text_column=text_column,
+                max_source_length=max_source_length,
+                num_beams=num_beams,
+                n=n,
+                num_articles=num_articles)
 
             if summary_column is not None:
                 target_sums += batch[summary_column]
 
-            try:
-                article_ids += batch["article_id"]
-            except KeyError:
-                article_ids += range(num_articles, num_articles + len(input_ids))
-
-            num_articles += len(input_ids)
-            generations_r = [list(x) for x in zip(*generations)]
+            article_ids += gen_ids
+            num_articles += len(gen_ids)
 
             generated_sums += generations_r
 

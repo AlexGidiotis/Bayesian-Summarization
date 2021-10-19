@@ -54,6 +54,31 @@ class TestBayesianSummarizer(unittest.TestCase):
         self.assertListEqual(input_ids[0].tolist(), mock_input_ids_tensor[0].tolist())
 
     @mock.patch("transformers.PegasusForConditionalGeneration.generate")
+    def test_mc_dropout_batch(self, mock_generation):
+        input_text = "This is the first sentence. This is the second sentence. This is the third sentence."
+        target_text = "This is a generated summary."
+        mock_gen_ids = [[182, 117, 114, 3943, 5627, 107, 1]]
+        mock_gen_ids_tensor = values_tensor(mock_gen_ids)
+        batch = {
+            "document": input_text,
+        }
+
+        mock_generation.return_value = {
+            "sequences": mock_gen_ids_tensor,
+        }
+        generations, gen_ids = self.bayesian_summarizer.mc_dropout_batch(
+            batch=batch,
+            device="cpu",
+            text_column="document",
+            max_source_length=self.sequence_length,
+            num_beams=self.num_beams,
+            n=3,
+            num_articles=0)
+
+        self.assertEqual(generations[0][0], target_text)
+        self.assertEqual(len(gen_ids), 1)
+
+    @mock.patch("transformers.PegasusForConditionalGeneration.generate")
     def test_generate_bayesian(self, mock_generation):
         mock_gen_ids = [[182, 117, 114, 3943, 5627, 107, 1]]
         mock_gen_ids_tensor = values_tensor(mock_gen_ids)
