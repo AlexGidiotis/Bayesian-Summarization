@@ -2,8 +2,10 @@ import json
 import os
 import tempfile
 import unittest
+import mock
+from transformers import PegasusConfig, PegasusForConditionalGeneration, PreTrainedTokenizerFast
 
-from src.common.loaders import init_loader, init_dataset, create_loader, load_datasets
+from src.common.loaders import init_loader, init_dataset, create_loader, load_datasets, load_model
 
 
 def write_test_json(datafile, n):
@@ -105,3 +107,23 @@ class TestDataLoader(unittest.TestCase):
 
             self.assertEqual(len(test_loader), 2)
             del test_loader, test_ds
+
+
+class TestModelLoader(unittest.TestCase):
+    @mock.patch("transformers.AutoConfig.from_pretrained")
+    @mock.patch("transformers.AutoModelForSeq2SeqLM.from_pretrained")
+    def test_load_model(self, mock_model, mock_config):
+        args = {
+            "model_path": "test_pegasus",
+            "tokenizer_name": "google/pegasus-xsum",
+        }
+
+        dummy_config = PegasusConfig()
+        mock_config.return_value = dummy_config
+        mock_model.return_value = PegasusForConditionalGeneration(config=dummy_config)
+        model, tokenizer = load_model(model_name_or_path=args["model_path"], tokenizer_name=args["tokenizer_name"])
+
+        self.assertIsInstance(model, PegasusForConditionalGeneration)
+        self.assertIsInstance(tokenizer, PreTrainedTokenizerFast)
+
+        del model, dummy_config, tokenizer
