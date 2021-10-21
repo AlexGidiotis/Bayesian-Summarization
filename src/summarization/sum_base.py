@@ -44,7 +44,6 @@ class Summarizer:
     """
     def __init__(self, **kwargs):
         self.model_args, self.data_args, self.training_args = parse_kargs(**kwargs)
-
         self.setup_loggers()
 
         set_seed(self.training_args.seed)
@@ -81,12 +80,12 @@ class Summarizer:
             tokenizer_name=self.model_args.tokenizer_name,
             use_fast_tokenizer=self.model_args.use_fast_tokenizer)
 
-        self.prefix = self.init_decoder()
+        self.prefix = self.init_decoder(model=self.model)
         (
             self.train_dataset, self.eval_dataset, self.eot_eval_dataset, self.test_dataset
-        ) = self.init_datasets()
+        ) = self.init_datasets(datasets=self.datasets, model=self.model, tokenizer=self.tokenizer, prefix=self.prefix)
 
-        self.data_collator = self.init_collocator()
+        self.data_collator = self.init_collocator(tokenizer=self.tokenizer)
 
         self.metric = load_metric("rouge")
 
@@ -130,16 +129,16 @@ class Summarizer:
             transformers.utils.logging.set_verbosity_info()
         logger.info("Training/evaluation parameters %s", self.training_args)
 
-    def init_decoder(self):
+    def init_decoder(self, model):
         """Set decoder_start_token_id"""
-        if self.model.config.decoder_start_token_id is None:
+        if model.config.decoder_start_token_id is None:
             raise ValueError("Make sure that `config.decoder_start_token_id` is correctly defined")
 
         prefix = self.data_args.source_prefix if self.data_args.source_prefix is not None else ""
 
         return prefix
 
-    def init_datasets(self):
+    def init_datasets(self, datasets, model, tokenizer, prefix):
         """
         Initializes loaded datasets for preprocessing, training and prediction.
 
@@ -150,7 +149,7 @@ class Summarizer:
         test_dataset:
         """
         # We need to tokenize inputs and targets.
-        column_names = self.datasets["train"].column_names
+        column_names = datasets["train"].column_names
 
         # To serialize preprocess_function below, each of those four variables needs to be defined (even if we won't use
         # them all).
@@ -181,26 +180,26 @@ class Summarizer:
         padding = "max_length" if self.data_args.pad_to_max_length else False
 
         if self.training_args.label_smoothing_factor > 0 and not hasattr(
-                self.model, "prepare_decoder_input_ids_from_labels"):
+                model, "prepare_decoder_input_ids_from_labels"):
             logger.warning(
                 "label_smoothing is enabled but the `prepare_decoder_input_ids_from_labels` method is not defined for"
-                f"`{self.model.__class__.__name__}`. "
+                f"`{model.__class__.__name__}`. "
                 "This will lead to loss being calculated twice and will take up more memory"
             )
 
         def preprocess_function(examples):
             inputs = examples[text_column]
             targets = examples[summary_column]
-            inputs = [self.prefix + inp for inp in inputs]
-            model_inputs = self.tokenizer(
+            inputs = [prefix + inp for inp in inputs]
+            model_inputs = tokenizer(
                 inputs,
                 max_length=self.data_args.max_source_length,
                 padding=padding,
                 truncation=True)
 
             # Setup the tokenizer for targets
-            with self.tokenizer.as_target_tokenizer():
-                labels = self.tokenizer(
+            with tokenizer.as_target_tokenizer():
+                labels = tokenizer(
                     targets,
                     max_length=max_target_length,
                     padding=padding,
@@ -210,16 +209,16 @@ class Summarizer:
             # padding in the loss.
             if padding == "max_length" and self.data_args.ignore_pad_token_for_loss:
                 labels["input_ids"] = [
-                    [(l if l != self.tokenizer.pad_token_id else -100) for l in label] for label in labels["input_ids"]
+                    [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in labels["input_ids"]
                 ]
 
             model_inputs["labels"] = labels["input_ids"]
             return model_inputs
 
         if self.training_args.do_train:
-            if "train" not in self.datasets:
+            if "train" not in datasets:
                 raise ValueError("training requires a train dataset")
-            train_dataset = self.datasets["train"]
+            train_dataset = datasets["train"]
             if self.data_args.max_train_samples is not None:
                 train_dataset = train_dataset.select(range(self.data_args.max_train_samples))
             train_dataset = train_dataset.map(
@@ -234,9 +233,9 @@ class Summarizer:
 
         if self.training_args.do_eval:
             max_target_length = self.data_args.val_max_target_length
-            if "validation" not in self.datasets:
+            if "validation" not in datasets:
                 raise ValueError("evaluation requires a validation dataset")
-            eval_dataset = self.datasets["validation"]
+            eval_dataset = datasets["validation"]
             if self.data_args.max_val_samples is not None:
                 eval_dataset = eval_dataset.select(range(self.data_args.max_val_samples))
             eval_dataset = eval_dataset.map(
@@ -246,7 +245,7 @@ class Summarizer:
                 remove_columns=column_names,
                 load_from_cache_file=not self.data_args.overwrite_cache,
             )
-            eot_eval_dataset = self.datasets["validation"]  # end-of-training evaluation with more data
+            eot_eval_dataset = datasets["validation"]  # end-of-training evaluation with more data
             if self.data_args.max_test_samples is not None:
                 eot_eval_dataset = eot_eval_dataset.select(range(self.data_args.max_test_samples))
             eot_eval_dataset = eot_eval_dataset.map(
@@ -262,9 +261,9 @@ class Summarizer:
 
         if self.training_args.do_predict:
             max_target_length = self.data_args.val_max_target_length
-            if "test" not in self.datasets:
+            if "test" not in datasets:
                 raise ValueError("prediction requires a test dataset")
-            test_dataset = self.datasets["test"]
+            test_dataset = datasets["test"]
             if self.data_args.max_test_samples is not None:
                 test_dataset = test_dataset.select(range(self.data_args.max_test_samples))
             test_dataset = test_dataset.map(
@@ -279,14 +278,13 @@ class Summarizer:
 
         return train_dataset, eval_dataset, eot_eval_dataset, test_dataset
 
-    def init_collocator(self):
-        label_pad_token_id = -100 if self.data_args.ignore_pad_token_for_loss else self.tokenizer.pad_token_id
+    def init_collocator(self, tokenizer):
+        label_pad_token_id = -100 if self.data_args.ignore_pad_token_for_loss else tokenizer.pad_token_id
         if self.data_args.pad_to_max_length:
             data_collator = default_data_collator
         else:
             data_collator = DataCollatorForSeq2Seq(
-                self.tokenizer,
-                model=self.model,
+                tokenizer,
                 label_pad_token_id=label_pad_token_id,
                 pad_to_multiple_of=8 if self.training_args.fp16 else None,
             )
@@ -304,7 +302,8 @@ class Summarizer:
         decoded_labels = self.tokenizer.batch_decode(labels, skip_special_tokens=True)
 
         # Some simple post-processing
-        decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
+        decoded_preds = postprocess_text(decoded_preds)
+        decoded_labels = postprocess_text(decoded_labels)
 
         result = self.metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
         # Extract a few results from ROUGE
@@ -416,12 +415,10 @@ class Summarizer:
         return test_metrics
 
 
-def postprocess_text(preds, labels):
-    preds = [pred.strip() for pred in preds]
-    labels = [label.strip() for label in labels]
+def postprocess_text(texts):
+    texts = [text.strip() for text in texts]
 
     # rougeLSum expects newline after each sentence
-    preds = ["\n".join(nltk.sent_tokenize(pred)) for pred in preds]
-    labels = ["\n".join(nltk.sent_tokenize(label)) for label in labels]
+    texts = ["\n".join(nltk.sent_tokenize(text)) for text in texts]
 
-    return preds, labels
+    return texts
