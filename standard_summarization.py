@@ -51,7 +51,14 @@ def main():
     model = model.to(device)
     model.eval()
     generated_sums, target_sums, article_ids = generate_summaries(
-        test_loader, model, tokenizer, device=device, args=args)
+        dataloader=test_loader,
+        model=model,
+        tokenizer=tokenizer,
+        device=device,
+        text_column=args.text_column,
+        summary_column=args.summary_column,
+        max_source_length=args.max_source_length,
+        num_beams=args.num_beams)
 
     metrics, mdf = score_standard(
         gen_sums=generated_sums,

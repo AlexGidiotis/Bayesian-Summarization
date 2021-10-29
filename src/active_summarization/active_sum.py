@@ -14,7 +14,7 @@ import torch
 from src.bayesian_summarization.bayesian import BayesianSummarizer
 from src.common.loaders import load_model, create_loader
 from src.bayesian_summarization.bleu import analyze_generation_bleuvar
-from src.summarization.sum_base import Summarizer
+from src.summarization.sum_base import TrainerSummarizer
 
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ class ActiveSum:
         Wraps the call to the summarization trainer with the required arguments
         """
         train_path = os.path.join(labeled_path, "train.json")
-        sum_trainer = Summarizer(
+        sum_trainer = TrainerSummarizer(
             model_name_or_path=self.init_model,
             tokenizer_name=self.init_model,
             train_file=train_path,

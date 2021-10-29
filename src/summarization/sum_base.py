@@ -18,6 +18,7 @@ from transformers.trainer_utils import get_last_checkpoint, is_main_process
 from transformers import EarlyStoppingCallback
 
 from src.common.loaders import load_datasets, load_model
+from src.summarization.generation import generate_summaries
 from src.summarization.utils import SUMMARIZATION_NAME_MAPPING, parse_kargs
 
 with FileLock(".lock") as lock:
@@ -28,12 +29,78 @@ logger = logging.getLogger(__name__)
 
 class Summarizer:
     """
-    Basic class that runs summarization training and prediction using datasets.
-
+    Basic class for summary generation.
 
     Example:
     ```
-    sum_trainer = Summarizer(...)
+    summarizer = Summarizer(...)
+    test_loader = torch.utils.data.DataLoader(...)
+
+    model, tokenizer = summarizer.load_model_tokenizer()
+    generated_sums, target_sums, article_ids = summarizer.predict(test_loader, model, tokenizer)
+    ```
+    """
+    def __init__(self, **kwargs):
+        self.model_args, self.data_args, self.training_args = parse_kargs(**kwargs)
+        self.setup_loggers()
+
+        set_seed(self.training_args.seed)
+
+    def load_model_tokenizer(self):
+        model, tokenizer = load_model(
+            model_name_or_path=self.model_args.model_name_or_path,
+            config_name=self.model_args.config_name,
+            cache_dir=self.model_args.cache_dir,
+            model_revision=self.model_args.model_revision,
+            use_auth_token=self.model_args.use_auth_token,
+            tokenizer_name=self.model_args.tokenizer_name,
+            use_fast_tokenizer=self.model_args.use_fast_tokenizer)
+
+        return model, tokenizer
+
+    def setup_loggers(self):
+        # Setup logging
+        logging.basicConfig(
+            format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+            datefmt="%m/%d/%Y %H:%M:%S",
+            handlers=[logging.StreamHandler(sys.stdout)],
+        )
+        logger.setLevel(logging.INFO if is_main_process(self.training_args.local_rank) else logging.WARN)
+
+        # Log on each process the small summary:
+        logger.warning(
+            f"Process rank: {self.training_args.local_rank}, "
+            f"device: {self.training_args.device}, "
+            f"n_gpu: {self.training_args.n_gpu}, "
+            f"distributed training: {bool(self.training_args.local_rank != -1)}, "
+            f"16-bits training: {self.training_args.fp16}"
+        )
+        # Set the verbosity to info of the Transformers logger (on main process only):
+        if is_main_process(self.training_args.local_rank):
+            transformers.utils.logging.set_verbosity_info()
+        logger.info("Training/evaluation parameters %s", self.training_args)
+
+    def predict(self, dataloader, model, tokenizer, *args, **kwargs):
+        generated_sums, target_sums, article_ids = generate_summaries(
+            dataloader=dataloader,
+            model=model,
+            tokenizer=tokenizer,
+            device=self.training_args.device,
+            text_column=self.data_args.text_column,
+            summary_column=self.data_args.summary_column,
+            max_source_length=self.data_args.max_source_length,
+            num_beams=self.data_args.num_beams)
+
+        return generated_sums, target_sums, article_ids
+
+
+class TrainerSummarizer(Summarizer):
+    """
+    Basic class that runs summarization training and prediction using datasets.
+
+    Example:
+    ```
+    sum_trainer = TrainerSummarizer(...)
 
     sum_trainer.init_sum()
 
@@ -43,11 +110,6 @@ class Summarizer:
     ```
     """
     def __init__(self, **kwargs):
-        self.model_args, self.data_args, self.training_args = parse_kargs(**kwargs)
-        self.setup_loggers()
-
-        set_seed(self.training_args.seed)
-
         self.last_checkpoint = None
         self.datasets = None
         self.model = None
@@ -62,6 +124,7 @@ class Summarizer:
         self.data_collator = None
         self.metric = None
         self.trainer = None
+        super(TrainerSummarizer, self).__init__(**kwargs)
 
     def init_sum(self):
         self.last_checkpoint = self.detect_checkpoint()
@@ -71,14 +134,7 @@ class Summarizer:
             train_file=self.data_args.train_file,
             validation_file=self.data_args.validation_file,
             test_file=self.data_args.test_file)
-        self.model, self.tokenizer = load_model(
-            model_name_or_path=self.model_args.model_name_or_path,
-            config_name=self.model_args.config_name,
-            cache_dir=self.model_args.cache_dir,
-            model_revision=self.model_args.model_revision,
-            use_auth_token=self.model_args.use_auth_token,
-            tokenizer_name=self.model_args.tokenizer_name,
-            use_fast_tokenizer=self.model_args.use_fast_tokenizer)
+        self.model, self.tokenizer = self.load_model_tokenizer()
 
         self.prefix = self.init_decoder(model=self.model)
         (
@@ -106,28 +162,6 @@ class Summarizer:
                 )
 
         return last_checkpoint
-
-    def setup_loggers(self):
-        # Setup logging
-        logging.basicConfig(
-            format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
-            datefmt="%m/%d/%Y %H:%M:%S",
-            handlers=[logging.StreamHandler(sys.stdout)],
-        )
-        logger.setLevel(logging.INFO if is_main_process(self.training_args.local_rank) else logging.WARN)
-
-        # Log on each process the small summary:
-        logger.warning(
-            f"Process rank: {self.training_args.local_rank}, "
-            f"device: {self.training_args.device}, "
-            f"n_gpu: {self.training_args.n_gpu}, "
-            f"distributed training: {bool(self.training_args.local_rank != -1)}, "
-            f"16-bits training: {self.training_args.fp16}"
-        )
-        # Set the verbosity to info of the Transformers logger (on main process only):
-        if is_main_process(self.training_args.local_rank):
-            transformers.utils.logging.set_verbosity_info()
-        logger.info("Training/evaluation parameters %s", self.training_args)
 
     def init_decoder(self, model):
         """Set decoder_start_token_id"""
@@ -377,7 +411,7 @@ class Summarizer:
 
         return eval_metrics
 
-    def predict(self):
+    def predict(self, *args, **kwargs):
         if self.trainer is None:
             self.trainer = Seq2SeqTrainer(
                 model=self.model,

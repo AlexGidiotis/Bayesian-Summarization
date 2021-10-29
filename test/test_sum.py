@@ -8,7 +8,7 @@ from transformers import AutoTokenizer, PegasusForConditionalGeneration, Pegasus
     DataCollatorForSeq2Seq
 
 from src.common.loaders import load_datasets
-from src.summarization.sum_base import Summarizer, postprocess_text
+from src.summarization.sum_base import TrainerSummarizer, postprocess_text
 from test.test_loaders import create_test_loader, write_test_json
 from test.testing_common_utils import values_tensor
 from src.bayesian_summarization.bayesian import BayesianSummarizer
@@ -39,7 +39,7 @@ class TestSummarizer(unittest.TestCase):
 
             write_test_json(train_file, n=4)
 
-            summarizer = Summarizer(
+            summarizer = TrainerSummarizer(
                 model_name_or_path=model_path,
                 train_file=train_file,
                 output_dir=output_dir,
@@ -98,7 +98,7 @@ class TestSummarizer(unittest.TestCase):
             write_test_json(validation_file, n=4)
             write_test_json(test_file, n=4)
 
-            summarizer = Summarizer(
+            summarizer = TrainerSummarizer(
                 model_name_or_path=model_path,
                 train_file=train_file,
                 validation_file=validation_file,
@@ -171,7 +171,7 @@ class TestSummarizer(unittest.TestCase):
             write_test_json(validation_file, n=4)
             write_test_json(test_file, n=4)
 
-            summarizer = Summarizer(
+            summarizer = TrainerSummarizer(
                 model_name_or_path=model_path,
                 train_file=train_file,
                 validation_file=validation_file,
@@ -231,7 +231,7 @@ class TestSummarizer(unittest.TestCase):
             "metric": "rouge1",
         }
 
-        summarizer = Summarizer(
+        summarizer = TrainerSummarizer(
             model_name_or_path=args["model_path"],
             train_file=args["train_file"],
             validation_file=args["validation_file"],
@@ -267,7 +267,7 @@ class TestSummarizer(unittest.TestCase):
             "metric": "rouge1",
         }
 
-        summarizer = Summarizer(
+        summarizer = TrainerSummarizer(
             model_name_or_path=args["model_path"],
             train_file=args["train_file"],
             validation_file=args["validation_file"],
@@ -303,7 +303,7 @@ class TestSummarizer(unittest.TestCase):
             "metric": "rouge1",
         }
 
-        summarizer = Summarizer(
+        summarizer = TrainerSummarizer(
             model_name_or_path=args["model_path"],
             train_file=args["train_file"],
             validation_file=args["validation_file"],
