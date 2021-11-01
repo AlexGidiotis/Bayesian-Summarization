@@ -4,9 +4,10 @@ from transformers.models.pegasus.modeling_pegasus import PegasusEncoderLayer, Pe
 from transformers.models.bart.modeling_bart import BartEncoderLayer, BartDecoderLayer
 
 from src.bayesian_summarization.bleu import analyze_generation_bleuvar
+from src.summarization.sum_base import Summarizer
 
 
-class BayesianSummarizer:
+class BayesianSummarizer(Summarizer):
     """
     Bayesian summarizer class
 
@@ -22,55 +23,43 @@ class BayesianSummarizer:
     Example:
     ```
     model, tokenizer = load_model(...)
-    bayesian_summarizer = BayesianSummarizer(model=model, tokenizer=tokenizer)
+    bayesian_summarizer = bayesian_summarizer = BayesianSummarizer(...)
+    bayesian_summarizer.init_sum()
 
-    generated_sums = bayesian_summarizer.generate_bayesian_summaries(
-        dataloader,
-        device='gpu',
-        text_column='document',
-        max_source_length=128,
-        num_beams=3,
-        n=10)
+    generated_sums = bayesian_summarizer.generate_bayesian_summaries(dataloader, n=10)
         
-    mc_dropout_gens = bayesian_summarizer.generate_mc_summaries(
-        dataloader,
-        device='gpu',
-        text_column='document',
-        max_source_length=128,
-        num_beams=3,
-        n=10)
+    mc_dropout_gens = bayesian_summarizer.generate_mc_summaries(dataloader, n=10)
     ```
     """
-    def __init__(self, model, tokenizer):
-        self.model = convert_bayesian_model(model, bayesian=True)
-        self.tokenizer = tokenizer
+    def __init__(self, **kwargs):
+        self.model = None
+        self.tokenizer = None
+        super(BayesianSummarizer, self).__init__(**kwargs)
 
-    def run_mc_dropout(
-            self,
-            batch,
-            device,
-            text_column,
-            max_source_length=128,
-            num_beams=3,
-            n=10):
+    def init_sum(self):
+        self.model, self.tokenizer = self.load_model_tokenizer()
+        self.model = self.model.to(self.training_args.device)
+        self.model = convert_bayesian_model(self.model, bayesian=True)
+
+    def run_mc_dropout(self, batch, n=10):
         """
         Runs MC dropout generation N times given a batch of data and a Bayesian model
         
         Returns: N lists of generated summaries.
         """
         model_inputs = self.tokenizer(
-            batch[text_column],
-            max_length=max_source_length,
+            batch[self.data_args.text_column],
+            max_length=self.data_args.max_source_length,
             truncation=True,
             padding=True,
             return_tensors='pt')
 
-        input_ids = model_inputs['input_ids'].to(device)
+        input_ids = model_inputs['input_ids'].to(self.training_args.device)
         generations = []
         for i_s in range(n):
             sent_outputs = self.model.generate(
                 input_ids,
-                num_beams=num_beams,
+                num_beams=self.data_args.num_beams,
                 early_stopping=True,
                 return_dict_in_generate=True,
                 output_scores=True)  # only one beam should be equivalent to greedy,
@@ -83,15 +72,7 @@ class BayesianSummarizer:
             
         return generations, input_ids
     
-    def generate_bayesian_summaries(
-            self,
-            dataloader,
-            device,
-            text_column,
-            summary_column=None,
-            max_source_length=128,
-            num_beams=3,
-            n=10):
+    def generate_bayesian_summaries(self, dataloader, n=10):
         """
         Run bayesian summary generation given a DataLoader and a Bayesian model.
         
@@ -105,15 +86,11 @@ class BayesianSummarizer:
         for i, batch in enumerate(tqdm(dataloader)):
             generations_r, gen_ids = self.mc_dropout_batch(
                 batch=batch,
-                device=device,
-                text_column=text_column,
-                max_source_length=max_source_length,
-                num_beams=num_beams,
                 n=n,
                 num_articles=num_articles)
 
-            if summary_column is not None:
-                target_sums += batch[summary_column]
+            if self.data_args.summary_column is not None:
+                target_sums += batch[self.data_args.summary_column]
 
             article_ids += gen_ids
             num_articles += len(gen_ids)
@@ -128,11 +105,7 @@ class BayesianSummarizer:
     def mc_dropout_batch(
             self,
             batch,
-            device,
-            text_column,
             num_articles,
-            max_source_length=128,
-            num_beams=3,
             n=10):
         """
         Runs MC dropout generation given a batch of data and a Bayesian model.
@@ -140,13 +113,7 @@ class BayesianSummarizer:
         Returns: N summaries generated with MC dropout for each input in the batch and the input
             article ids.
         """
-        generations, input_ids = self.run_mc_dropout(
-            batch,
-            device,
-            text_column,
-            max_source_length,
-            num_beams,
-            n)
+        generations, input_ids = self.run_mc_dropout(batch, n)
 
         try:
             gen_ids = batch["article_id"]
@@ -160,11 +127,6 @@ class BayesianSummarizer:
     def generate_mc_summaries(
             self,
             dataloader,
-            device,
-            text_column,
-            summary_column=None,
-            max_source_length=128,
-            num_beams=3,
             n=10):
         """
         Runs MC dropout generation given a DataLoader and a Bayesian model.
@@ -178,15 +140,11 @@ class BayesianSummarizer:
         for i, batch in enumerate(tqdm(dataloader)):
             generations_r, gen_ids = self.mc_dropout_batch(
                 batch=batch,
-                device=device,
-                text_column=text_column,
-                max_source_length=max_source_length,
-                num_beams=num_beams,
                 n=n,
                 num_articles=num_articles)
 
-            if summary_column is not None:
-                target_sums += batch[summary_column]
+            if self.data_args.summary_column is not None:
+                target_sums += batch[self.data_args.summary_column]
 
             article_ids += gen_ids
             num_articles += len(gen_ids)

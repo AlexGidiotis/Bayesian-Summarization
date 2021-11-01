@@ -9,9 +9,7 @@ from transformers import AutoTokenizer, PegasusForConditionalGeneration, Pegasus
 
 from src.common.loaders import load_datasets
 from src.summarization.sum_base import TrainerSummarizer, postprocess_text
-from test.test_loaders import create_test_loader, write_test_json
-from test.testing_common_utils import values_tensor
-from src.bayesian_summarization.bayesian import BayesianSummarizer
+from test.test_loaders import write_test_json
 
 
 class TestSummarizer(unittest.TestCase):

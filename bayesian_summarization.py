@@ -53,18 +53,19 @@ def main():
         data_path=args.data_path,
         dataset_name=args.dataset_name,
         dataset_config_name=args.dataset_config_name, max_test_samples=args.max_test_samples)
-    model, tokenizer = load_model(model_name_or_path=args.model_path, tokenizer_name=args.tokenizer_name)
-    model = model.to(device)
-    bayesian_summarizer = BayesianSummarizer(model=model, tokenizer=tokenizer)
-
-    generated_sums, target_sums, article_ids, bleuvars = bayesian_summarizer.generate_bayesian_summaries(
-        dataloader=test_loader,
-        device=device,
+    bayesian_summarizer = BayesianSummarizer(
+        model_name_or_path=args.model_path,
+        tokenizer_name=args.tokenizer_name,
         text_column=args.text_column,
         summary_column=args.summary_column,
+        seed=args.seed,
         max_source_length=args.max_source_length,
         num_beams=args.num_beams,
-        n=args.mc_samples)
+    )
+    bayesian_summarizer.init_sum()
+
+    generated_sums, target_sums, article_ids, bleuvars = bayesian_summarizer.generate_bayesian_summaries(
+        dataloader=test_loader, n=args.mc_samples)
     
     metrics, mdf = score_standard(
         gen_sums=generated_sums,

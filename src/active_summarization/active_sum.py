@@ -275,20 +275,21 @@ class BAS(ActiveSum):
         n different summaries.
         """
         dataloader = create_loader(self.data_sampler.dataset, batch_size=self.batch_size, sample=sample_idxs)
-
-        model, tokenizer = load_model(tokenizer_name=self.init_model, model_name_or_path=model_path)
-        model = model.to(self.device)
-        bayesian_summarizer = BayesianSummarizer(model=model, tokenizer=tokenizer)
+        bayesian_summarizer = BayesianSummarizer(
+            model_name_or_path=model_path,
+            tokenizer_name=self.init_model,
+            text_column=self.doc_col,
+            seed=self.seed,
+            max_source_length=self.source_len,
+            num_beams=self.beams,
+        )
+        bayesian_summarizer.init_sum()
 
         generated_sums = bayesian_summarizer.generate_mc_summaries(
             dataloader,
-            device=self.device,
-            text_column=self.doc_col,
-            max_source_length=self.source_len,
-            num_beams=self.beams,
             n=n)
 
-        del bayesian_summarizer, tokenizer, model
+        del bayesian_summarizer
         gc.collect()
         torch.cuda.empty_cache()
 
@@ -306,7 +307,6 @@ class BAS(ActiveSum):
     def select_data(self, scores, s, threshold=0.96):
         """Select the examples with the S highest BLEUVar scores"""
         scores = np.array(scores)
-#         top_s = scores.argsort()[-s:][::-1]
         top_s = scores.argsort()
         top_s = [idx for idx in top_s if scores[idx] < threshold][-s:][::-1]
 
