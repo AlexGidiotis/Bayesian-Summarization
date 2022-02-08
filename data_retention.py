@@ -206,7 +206,7 @@ def main():
     plot_increase(
         dataset_runs=data_runs,
         metrics=metrics_list,
-        diff_runs=diffs,
+        # diff_runs=diffs,
         run_models=model_list,
         n_list=n_list,
         save_path=root_data_path,

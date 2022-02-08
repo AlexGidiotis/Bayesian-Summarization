@@ -12,6 +12,8 @@ def plot_rouge_retention(metrics, dataset_runs, run_models, n_list, base_runs, b
     # plot metrics
     for i, metric in enumerate(metrics):
         fig, axs = plt.subplots(1, len(dataset_runs))
+        if len(dataset_runs) == 1:
+            axs = [axs]
         for j, dataset in enumerate(dataset_runs.keys()):
             norm_runs = dataset_runs[dataset]
             for metrics_change_df, model, n in zip(norm_runs, run_models, n_list):
@@ -77,6 +79,8 @@ def plot_increase(dataset_runs, run_models, metrics, n_list, save_path, ascendin
     plt.rcParams['figure.figsize'] = [18, 6]
     for i, metric in enumerate(metrics):
         fig, axs = plt.subplots(1, len(dataset_runs))
+        if len(dataset_runs) == 1:
+            axs = [axs]
         for j, dataset in enumerate(dataset_runs.keys()):
             diff_runs = dataset_runs[dataset]
             for diff_df, model, n in zip(diff_runs, run_models, n_list):
