@@ -4,6 +4,29 @@ from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 from nltk.tokenize import sent_tokenize, word_tokenize
 
 
+def smoothing_function(p_n, references, hypothesis, hyp_len):
+    """
+    Smooth-BLEU (BLEUS) as proposed in the paper:
+    Chin-Yew Lin, Franz Josef Och. ORANGE: a method for evaluating automatic
+    evaluation metrics for machine translation. COLING 2004.
+    """
+    smoothed_p_n = []
+    for i, p_i in enumerate(p_n, start=1):
+        # Smoothing is not applied for unigrams
+        if i > 1:
+            # If hypothesis length is lower than the current order, its value equals (0 + 1) / (0 + 1) = 0 
+            if hyp_len < i:
+                assert p_i.denominator == 1
+                smoothed_p_n.append(1)
+            # Otherwise apply smoothing
+            else:
+                smoothed_p_i = (p_i.numerator + 1) / (p_i.denominator + 1)
+                smoothed_p_n.append(smoothed_p_i)
+        else:
+            smoothed_p_n.append(p_i)
+    return smoothed_p_n
+
+
 def pair_bleu(text1, text2):
     """
     Compute the bleu score between two given texts.
@@ -16,7 +39,7 @@ def pair_bleu(text1, text2):
     score = 0
     for c_cent in tok2:
         try:
-            score += corpus_bleu([tok1], [c_cent], smoothing_function=SmoothingFunction().method1)
+            score += corpus_bleu([tok1], [c_cent], smoothing_function=smoothing_function)
         except KeyError:
             score = 0.
     try:
